@@ -1,0 +1,34 @@
+ULFM OpenMPI install
+----------------------
+cd /home/username/
+wget https://download.open-mpi.org/release/open-mpi/v5.0/openmpi-5.0.0rc9.tar.gz
+mkdir ULFM
+mv openmpi-5.0.0rc9.tar.gz ULFM/
+cd ULFM/
+tar -xzf openmpi-5.0.0rc9.tar.gz 
+cd openmpi-5.0.0rc9/
+mkdir build
+cd build
+
+// ../configure --prefix=/home/disfavour/ULFM --with-ft=ulfm  - не сработал
+../configure --prefix=/home/disfavour/ULFM --with-ft=ulfm --with-pmix=internal
+
+make -j4
+make install
+cd ../..
+ls bin/
+
+Чтобы работало в терминале без указания пути
+В /home/disfavour/.profile не сработало
+В /home/disfavour/.bashrc
+PATH="/home/disfavour/ULFM/bin:$PATH"
+
+--oversubscribe - задействовать большее количество процессов, чем есть физически
+
+mpirun -np 8 --with-ft=ulfm --mca mpi_ft_detector true --oversubscribe ./a.out
+
+mpirun -np 8 --with-ft=ulfm --mca mpi_ft_detector true --oversubscribe ./a.out
+
+/home/disfavour/ULFM/bin/mpicc 
+
+/home/disfavour/ULFM/bin/mpirun -np 8 --with-ft=ulfm --mca mpi_ft_detector true --oversubscribe a.out
