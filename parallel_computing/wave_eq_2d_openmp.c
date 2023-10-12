@@ -175,7 +175,7 @@ int main(int argc, char** argv)
 		{
 			for (int j = 0; j <= Mx; ++j)
 			{
-				const double dif = u(T, j*hx, i*hy) - A[2][i][j];
+				double dif = u(T, j*hx, i*hy) - A[2][i][j];
 				norm_L2 += dif*dif;
 				norm_C = fmax(norm_C, fabs(dif));
 			}
