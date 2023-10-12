@@ -111,7 +111,7 @@ int main(int argc, char** argv)
 
 	for (int i = 0; i <= M; ++i)
 	{
-		double dif = u(T, i*h) - A[2][i];
+		const double dif = u(T, i*h) - A[2][i];
 		norm_L2 += dif*dif;
 		norm_C = fmax(norm_C, fabs(dif));
 	}
