@@ -21,16 +21,16 @@ double f(double a, double t, double x)
 	return (9*a*a - 4)*cos(2*t)*sin(3*x);
 }
 
-
-double mu_left(double t)			// u(t, 0)
+// u(t, 0)
+double mu_left(double t, double x)
 {
 	return 0;
 }
 
-
-double mu_right(double t, double L)	// u(t, L)
+// u(t, L)
+double mu_right(double t, double x)
 {
-	return cos(2*t)*sin(3*L);
+	return cos(2*t)*sin(3*x);
 }
 
 
@@ -61,7 +61,10 @@ int main(int argc, char** argv)
 		h = L / M,
 		a = 1;
 
-	double* A[3];
+	double
+		norm_L2 = 0,
+		norm_C = 0,
+		*A[3];
 
 	for (int i = 0; i < 3; ++i)
 	{
@@ -72,42 +75,38 @@ int main(int argc, char** argv)
 
 	for (int i = 0; i <= M; ++i)
 	{
-		A[0][i] = phi(i*h);
+		A[1][i] = phi(i*h);
 	}
 
 	for (int i = 1; i < M; ++i)
 	{
-		A[1][i] = A[0][i] + tau*(psi(i*h) \
-		+ tau/2*(a*a * (A[0][i+1] - 2*A[0][i] + A[0][i-1]) / (h*h) + f(a, t, i*h)));
+		A[2][i] = A[1][i] + tau*(psi(i*h)
+			+ tau/2*(a*a * (A[1][i+1] - 2*A[1][i] + A[1][i-1]) / (h*h) + f(a, t, i*h)));
 	}
 
 	t += tau;
 
-	A[1][0] = mu_left(t);
-	A[1][M] = mu_right(t, L);
+	A[2][0] = mu_left(t, 0);
+	A[2][M] = mu_right(t, L);
 
 	while (t < T - tau/2)
 	{
-		for (int i = 1; i < M; ++i)
-		{
-			A[2][i] = 2*A[1][i] - A[0][i] \
-			+ tau*tau*(a*a * (A[1][i+1] - 2*A[1][i] + A[1][i-1]) / (h*h) + f(a, t, i*h));
-		}
-
-		t += tau;
-
-		A[2][0] = mu_left(t);
-		A[2][M] = mu_right(t, L);
-
 		double* tmp = A[0];
 		A[0] = A[1];
 		A[1] = A[2];
 		A[2] = tmp;
-	}
 
-	double
-		norm_L2 = 0,
-		norm_C = 0;
+		for (int i = 1; i < M; ++i)
+		{
+			A[2][i] = 2*A[1][i] - A[0][i]
+				+ tau*tau*(a*a * (A[1][i+1] - 2*A[1][i] + A[1][i-1]) / (h*h) + f(a, t, i*h));
+		}
+
+		t += tau;
+
+		A[2][0] = mu_left(t, 0);
+		A[2][M] = mu_right(t, L);
+	}
 
 	for (int i = 0; i <= M; ++i)
 	{
