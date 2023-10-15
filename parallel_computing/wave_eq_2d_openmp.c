@@ -200,5 +200,5 @@ int main(int argc, char** argv)
 
 	printf("%.16lf %.16lf %.16lf\n", norm_L2, norm_C, omp_get_wtime() - start_time);
 
-	return 0;	// OMP_NUM_THREADS=16 ./a.out 1600 800 800 0.0000005066379303 0.0000010912610420 3.8504993290007405
+	return 0;
 }
