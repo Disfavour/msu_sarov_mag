@@ -160,14 +160,14 @@ int main(int argc, char** argv)
 	{
 		for (int j = 0; j <= Mx; ++j)
 		{
-			A[2][i_min - i_min_with_overlap][j] = mu_bot(t, j*hx, 0); // 0
+			A[2][i_min - i_min_with_overlap][j] = mu_bot(t, j*hx, 0);
 		}
 	}
 	else if (rank == size - 1)
 	{
 		for (int j = 0; j <= Mx; ++j)
 		{
-			A[2][i_max-1 - i_min_with_overlap][j] = mu_top(t, j*hx, Ly); // My
+			A[2][i_max-1 - i_min_with_overlap][j] = mu_top(t, j*hx, Ly);
 		}
 	}
 
@@ -218,14 +218,14 @@ int main(int argc, char** argv)
 		{
 			for (int j = 0; j <= Mx; ++j)
 			{
-				A[2][i_min - i_min_with_overlap][j] = mu_bot(t, j*hx, 0); // 0
+				A[2][i_min - i_min_with_overlap][j] = mu_bot(t, j*hx, 0);
 			}
 		}
 		else if (rank == size - 1)
 		{
 			for (int j = 0; j <= Mx; ++j)
 			{
-				A[2][i_max-1 - i_min_with_overlap][j] = mu_top(t, j*hx, Ly); // My
+				A[2][i_max-1 - i_min_with_overlap][j] = mu_top(t, j*hx, Ly);
 			}
 		}
 	}
