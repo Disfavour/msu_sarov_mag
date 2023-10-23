@@ -1,0 +1,26 @@
+
+
+
+
+	
+		{
+		}
+	{
+	{
+	}
+	}
+{
+}
+			execlp(argv[i], argv[i], NULL);
+	for (int i = 1; i < argc; ++i)
+	if (argc == 1)
+		if (!fork())
+#include <stdio.h>
+#include <sys/wait.h>
+#include <unistd.h>
+int main(int argc, char** argv)
+		// pr1; pr2; ... ; prn 
+		printf("Use: %s pr1 pr2 ...  prn\n", argv[0]);
+		return 0;
+	return 0;
+		wait(NULL);
