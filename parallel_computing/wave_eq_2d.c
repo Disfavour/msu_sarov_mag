@@ -6,49 +6,55 @@
 
 double phi(double x, double y)
 {
-	return sin(3*x)*cos(4*y);
+	return sin(4*x)*cos(5*y);
 }
 
 
 double psi(double x, double y)
 {
-	return 0;
+	return 6*cos(7*x)*sin(8*y);
 }
 
 
 double f(double a, double t, double x, double y)
 {
-	return (25*a*a - 4)*cos(2*t)*sin(3*x)*cos(4*y);
+	return -9*cos(3*t)*sin(4*x)*cos(5*y) - 36*sin(6*t)*cos(7*x)*sin(8*y) + a*a*(41*cos(3*t)*sin(4*x)*cos(5*y) + 113*sin(6*t)*cos(7*x)*sin(8*y));
 }
 
 // u(t, 0, y)
 double mu_left(double t, double x, double y)
 {
-	return 0;
+	return sin(6*t)*sin(8*y);
 }
 
 // u(t, x, 0)
 double mu_bot(double t, double x, double y)
 {
-	return cos(2*t)*sin(3*x);
+	return cos(3*t)*sin(4*x);
 }
 
 // u(t, Lx, y)
 double mu_right(double t, double x, double y)
 {
-	return cos(2*t)*sin(3*x)*cos(4*y);
+	return cos(3*t)*sin(4*x)*cos(5*y) + sin(6*t)*cos(7*x)*sin(8*y);
 }
 
 // u(t, x, Ly)
 double mu_top(double t, double x, double y)
 {
-	return cos(2*t)*sin(3*x)*cos(4*y);
+	return cos(3*t)*sin(4*x)*cos(5*y) + sin(6*t)*cos(7*x)*sin(8*y);
 }
 
 
 double u(double t, double x, double y)
 {
-	return cos(2*t)*sin(3*x)*cos(4*y);
+	return cos(3*t)*sin(4*x)*cos(5*y) + sin(6*t)*cos(7*x)*sin(8*y);
+}
+
+
+int unstable(double a, double tau, double hx, double hy)
+{
+	return a*tau*sqrt(1/(hx*hx) + 1/(hy*hy)) > 1;
 }
 
 
@@ -56,30 +62,45 @@ int main(int argc, char** argv)
 {
 	const clock_t start_time = clock();
 
-	if (argc != 4)
+	if (argc != 7)
 	{
-		printf("Use: %s N Mx My\n", argv[0]);
+		printf("Use: %s T Lx Ly N Mx My\n", argv[0]);
 		return 1;
 	}
 
+	const double
+		T = atof(argv[1]),
+		Lx = atof(argv[2]),
+		Ly = atof(argv[3]);
+
 	const int
-		N = atoi(argv[1]),
-		Mx = atoi(argv[2]),
-		My = atoi(argv[3]);
+		N = atoi(argv[4]),
+		Mx = atoi(argv[5]),
+		My = atoi(argv[6]);
 
 	const double
-		T = 1,
-		Lx = 1,
-		Ly = 1,
 		tau = T / N,
 		hx = Lx / Mx,
 		hy = Ly / My,
-		a = 1;
+		a = 0.7;
+
+	if (unstable(a, tau, hx, hy))
+	{
+		printf("unstable\n");
+		return 2;
+	}
 
 	double
 		norm_L2 = 0,
 		norm_C = 0,
 		**A[3];
+
+	double
+		hx2 = hx*hx,
+		hy2 = hy*hy,
+		a2 = a*a,
+		tau2 = tau*tau,
+		tau_2 = tau / 2;
 
 	for (int i = 0; i < 3; ++i)
 	{
@@ -95,38 +116,46 @@ int main(int argc, char** argv)
 
 	for (int i = 0; i <= My; ++i)
 	{
+		double y = i*hy;
 		for (int j = 0; j <= Mx; ++j)
 		{
-			A[1][i][j] = phi(j*hx, i*hy);
+			double x = j*hx;
+			A[1][i][j] = phi(x, y);
 		}
 	}
 
-	for (int i = 1; i < My; ++i)
-	{
-		for (int j = 1; j < Mx; ++j)
-		{
-			A[2][i][j] = A[1][i][j] + tau*(psi(j*hx, i*hy)
-				+ tau/2*(a*a * ((A[1][i+1][j] - 2*A[1][i][j] + A[1][i-1][j])/(hy*hy)
-				+ (A[1][i][j+1] - 2*A[1][i][j] + A[1][i][j-1])/(hx*hx)) + f(a, t, j*hx, i*hy)));
-		}
-	}
-
+	double tn = t;
 	t += tau;
 
 	for (int i = 1; i < My; ++i)
 	{
-		A[2][i][0] = mu_left(t, 0, i*hy);
-		A[2][i][Mx] = mu_right(t, Lx, i*hy);
+		double y = i*hy;
+
+		A[2][i][0] = mu_left(t, 0, y);
+
+		for (int j = 1; j < Mx; ++j)
+		{
+			double x = j*hx;
+			A[2][i][j] = A[1][i][j] + tau*(psi(x, y)
+				+ tau_2*(a2 * ((A[1][i+1][j] - 2*A[1][i][j] + A[1][i-1][j])/hy2
+				+ (A[1][i][j+1] - 2*A[1][i][j] + A[1][i][j-1])/hx2) + f(a, tn, x, y)));
+		}
+
+		A[2][i][Mx] = mu_right(t, Lx, y);
 	}
 
 	for (int j = 0; j <= Mx; ++j)
 	{
-		A[2][My][j] = mu_top(t, j*hx, Ly);
-		A[2][0][j] = mu_bot(t, j*hx, 0);
+		double x = j*hx;
+		A[2][My][j] = mu_top(t, x, Ly);
+		A[2][0][j] = mu_bot(t, x, 0);
 	}
 
-	while (t < T - tau/2)
+	while (t < T - tau_2)
 	{
+		tn = t;
+		t += tau;
+
 		double** tmp = A[0];
 		A[0] = A[1];
 		A[1] = A[2];
@@ -134,34 +163,36 @@ int main(int argc, char** argv)
 
 		for (int i = 1; i < My; ++i)
 		{
+			double y = i*hy;
+
+			A[2][i][0] = mu_left(t, 0, y);
+
 			for (int j = 1; j < Mx; ++j)
 			{
+				double x = j*hx;
 				A[2][i][j] = 2*A[1][i][j] - A[0][i][j]
-					+ tau*tau*(a*a*((A[1][i+1][j] - 2*A[1][i][j] + A[1][i-1][j])/(hy*hy)
-					+ (A[1][i][j+1] - 2*A[1][i][j] + A[1][i][j-1])/(hx*hx)) + f(a, t, j*hx, i*hy));
+					+ tau2*(a2*((A[1][i+1][j] - 2*A[1][i][j] + A[1][i-1][j])/hy2
+					+ (A[1][i][j+1] - 2*A[1][i][j] + A[1][i][j-1])/hx2) + f(a, tn, x, y));
 			}
-		}
 
-		t += tau;
-
-		for (int i = 1; i < My; ++i)
-		{
-			A[2][i][0] = mu_left(t, 0, i*hy);
-			A[2][i][Mx] = mu_right(t, Lx, i*hy);
+			A[2][i][Mx] = mu_right(t, Lx, y);
 		}
 
 		for (int j = 0; j <= Mx; ++j)
 		{
-			A[2][My][j] = mu_top(t, j*hx, Ly);
-			A[2][0][j] = mu_bot(t, j*hx, 0);
+			double x = j*hx;
+			A[2][My][j] = mu_top(t, x, Ly);
+			A[2][0][j] = mu_bot(t, x, 0);
 		}
 	}
 
 	for (int i = 0; i <= My; ++i)
 	{
+		double y = i*hy;
 		for (int j = 0; j <= Mx; ++j)
 		{
-			const double dif = u(T, j*hx, i*hy) - A[2][i][j];
+			double x = j*hx;
+			double dif = u(T, x, y) - A[2][i][j];
 			norm_L2 += dif*dif;
 			norm_C = fmax(norm_C, fabs(dif));
 		}

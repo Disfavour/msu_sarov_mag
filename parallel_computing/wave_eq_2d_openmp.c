@@ -82,7 +82,7 @@ int main(int argc, char** argv)
 		tau = T / N,
 		hx = Lx / Mx,
 		hy = Ly / My,
-		a = 1./16;
+		a = 0.7;
 
 	if (unstable(a, tau, hx, hy))
 	{
@@ -94,6 +94,13 @@ int main(int argc, char** argv)
 		norm_L2 = 0,
 		norm_C = 0,
 		**A[3];
+	
+	double
+		hx2 = hx*hx,
+		hy2 = hy*hy,
+		a2 = a*a,
+		tau2 = tau*tau,
+		tau_2 = tau / 2;
 
 	#pragma omp parallel
 	{
@@ -114,41 +121,48 @@ int main(int argc, char** argv)
 		#pragma omp for
 		for (int i = 0; i <= My; ++i)
 		{
+			double y = i*hy;
 			for (int j = 0; j <= Mx; ++j)
 			{
-				A[1][i][j] = phi(j*hx, i*hy);
+				double x = j*hx;
+				A[1][i][j] = phi(x, y);
 			}
 		}
 
-		#pragma omp for nowait
-		for (int i = 1; i < My; ++i)
-		{
-			for (int j = 1; j < Mx; ++j)
-			{
-				A[2][i][j] = A[1][i][j] + tau*(psi(j*hx, i*hy)
-					+ tau/2*(a*a * ((A[1][i+1][j] - 2*A[1][i][j] + A[1][i-1][j])/(hy*hy)
-					+ (A[1][i][j+1] - 2*A[1][i][j] + A[1][i][j-1])/(hx*hx)) + f(a, t, j*hx, i*hy)));
-			}
-		}
-
+		double tn = t;
 		t += tau;
 
 		#pragma omp for nowait
 		for (int i = 1; i < My; ++i)
 		{
-			A[2][i][0] = mu_left(t, 0, i*hy);
-			A[2][i][Mx] = mu_right(t, Lx, i*hy);
+			double y = i*hy;
+
+			A[2][i][0] = mu_left(t, 0, y);
+
+			for (int j = 1; j < Mx; ++j)
+			{
+				double x = j*hx;
+				A[2][i][j] = A[1][i][j] + tau*(psi(x, y)
+					+ tau_2*(a2 * ((A[1][i+1][j] - 2*A[1][i][j] + A[1][i-1][j])/hy2
+					+ (A[1][i][j+1] - 2*A[1][i][j] + A[1][i][j-1])/hx2) + f(a, tn, x, y)));
+			}
+
+			A[2][i][Mx] = mu_right(t, Lx, y);
 		}
 
 		#pragma omp for
 		for (int j = 0; j <= Mx; ++j)
 		{
-			A[2][My][j] = mu_top(t, j*hx, Ly);
-			A[2][0][j] = mu_bot(t, j*hx, 0);
+			double x = j*hx;
+			A[2][My][j] = mu_top(t, x, Ly);
+			A[2][0][j] = mu_bot(t, x, 0);
 		}
 
-		while (t < T - tau/2)
+		while (t < T - tau_2)
 		{
+			tn = t;
+			t += tau;
+
 			#pragma omp single
 			{
 				double** tmp = A[0];
@@ -160,37 +174,38 @@ int main(int argc, char** argv)
 			#pragma omp for nowait
 			for (int i = 1; i < My; ++i)
 			{
+				double y = i*hy;
+
+				A[2][i][0] = mu_left(t, 0, y);
+
 				for (int j = 1; j < Mx; ++j)
 				{
+					double x = j*hx;
 					A[2][i][j] = 2*A[1][i][j] - A[0][i][j]
-						+ tau*tau*(a*a*((A[1][i+1][j] - 2*A[1][i][j] + A[1][i-1][j])/(hy*hy)
-						+ (A[1][i][j+1] - 2*A[1][i][j] + A[1][i][j-1])/(hx*hx)) + f(a, t, j*hx, i*hy));
+						+ tau2*(a2*((A[1][i+1][j] - 2*A[1][i][j] + A[1][i-1][j])/hy2
+						+ (A[1][i][j+1] - 2*A[1][i][j] + A[1][i][j-1])/hx2) + f(a, tn, x, y));
 				}
-			}
 
-			t += tau;
-
-			#pragma omp for nowait
-			for (int i = 1; i < My; ++i)
-			{
-				A[2][i][0] = mu_left(t, 0, i*hy);
-				A[2][i][Mx] = mu_right(t, Lx, i*hy);
+				A[2][i][Mx] = mu_right(t, Lx, y);
 			}
 
 			#pragma omp for
 			for (int j = 0; j <= Mx; ++j)
 			{
-				A[2][My][j] = mu_top(t, j*hx, Ly);
-				A[2][0][j] = mu_bot(t, j*hx, 0);
+				double x = j*hx;
+				A[2][My][j] = mu_top(t, x, Ly);
+				A[2][0][j] = mu_bot(t, x, 0);
 			}
 		}
 
 		#pragma omp for reduction(+ : norm_L2) reduction(max : norm_C)
 		for (int i = 0; i <= My; ++i)
 		{
+			double y = i*hy;
 			for (int j = 0; j <= Mx; ++j)
 			{
-				const double dif = u(T, j*hx, i*hy) - A[2][i][j];
+				double x = j*hx;
+				double dif = u(T, x, y) - A[2][i][j];
 				norm_L2 += dif*dif;
 				norm_C = fmax(norm_C, fabs(dif));
 			}

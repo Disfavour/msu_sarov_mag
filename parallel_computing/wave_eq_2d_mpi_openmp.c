@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <mpi.h>
+#include <omp.h>
 
 
 #define min(a,b) ((a)<(b)?(a):(b))
@@ -121,95 +122,65 @@ int main(int argc, char** argv)
         j_max_overlap = j_max < Mx ? j_max + 1 : j_max,
         j_size_overlap = j_max_overlap - j_min_overlap;
 
-    MPI_Datatype row, column;
-    MPI_Type_contiguous(j_size, MPI_DOUBLE, &row);
-    MPI_Type_vector(i_size, 1, j_size_overlap, MPI_DOUBLE, &column);
-    MPI_Type_commit(&row);
-    MPI_Type_commit(&column);
-
-    // contiguous memory allocation
-    for (int k = 0; k < 3; ++k)
-    {
-        double *tmp = malloc(i_size_overlap * j_size_overlap * sizeof(double));
-
-        A[k] = malloc(i_size_overlap * sizeof(double*));
-
-        for (int i = 0; i < i_size_overlap; ++i)
-        {
-            A[k][i] = &tmp[i * j_size_overlap];
-        }
-    }
-
-    if (!rank)
-    {
-        start_time = MPI_Wtime();
-    }
-
-    double t = 0;
-
-    for (int ig = i_min_overlap; ig < i_max_overlap; ++ig)
-    {
-        double y = ig*hy;
-        int i = il(ig);
-
-        for (int jg = j_min_overlap; jg < j_max_overlap; ++jg)
-        {
-            double x = jg*hx;
-            int j = jl(jg);
-
-            A[1][i][j] = phi(x, y);
-        }
-    }    
-
-    for (int ig = max(1, i_min); ig < min(My-1, i_max); ++ig)
-    {
-        double y = ig*hy;
-        int i = il(ig);
-
-        for (int jg = max(1, j_min); jg < min(Mx-1, j_max); ++jg)
-        {
-            double x = jg*hx;
-            int j = jl(jg);
-
-            A[2][i][j] = A[1][i][j] + tau*(psi(x, y)
-                + tau_2*(a2 * ((A[1][i+1][j] - 2*A[1][i][j] + A[1][i-1][j])/hy2
-                + (A[1][i][j+1] - 2*A[1][i][j] + A[1][i][j-1])/hx2) + f(a, t, x, y)));
-        }
-    }
-
-    t += tau;
-
-    apply_bc(Lx, Ly, Mx, My, hx, hy, i_min, i_max, j_min, j_max, i_min_overlap, j_min_overlap, t, A);
-
     const int
         left = j_rank - 1 < 0 ? MPI_PROC_NULL : rank - 1,
         right = j_rank + 1 >= nx ? MPI_PROC_NULL : rank + 1,
         top = i_rank - 1 < 0 ? MPI_PROC_NULL : rank - nx,
         bot = i_rank + 1 >= ny ? MPI_PROC_NULL : rank + nx;
 
-    while (t < T - tau_2)
+    MPI_Datatype row, column;
+    MPI_Type_contiguous(j_size, MPI_DOUBLE, &row);
+    MPI_Type_vector(i_size, 1, j_size_overlap, MPI_DOUBLE, &column);
+    MPI_Type_commit(&row);
+    MPI_Type_commit(&column);
+
+    double *tmp;
+
+    #pragma omp parallel
 	{
-        MPI_Request requests[8];
+        // contiguous memory allocation
+        for (int k = 0; k < 3; ++k)
+        {
+            #pragma omp single
+            {
+                tmp = malloc(i_size_overlap * j_size_overlap * sizeof(double));
+                A[k] = malloc(i_size_overlap * sizeof(double*));
+            }
 
-		MPI_Irecv(&A[2][il(i_min)][jl(j_min_overlap)], 1, column, left, LEFT_TO_RIGHT, MPI_COMM_WORLD, &requests[0]);
-        MPI_Isend(&A[2][il(i_min)][jl(j_max-1)], 1, column, right, LEFT_TO_RIGHT, MPI_COMM_WORLD, &requests[1]);
+            #pragma omp for
+            for (int i = 0; i < i_size_overlap; ++i)
+            {
+                A[k][i] = &tmp[i * j_size_overlap];
+            }
+        }
 
-        MPI_Irecv(&A[2][il(i_min)][jl(j_max_overlap-1)], 1, column, right, RIGHT_TO_LEFT, MPI_COMM_WORLD, &requests[2]);
-        MPI_Isend(&A[2][il(i_min)][jl(j_min)], 1, column, left, RIGHT_TO_LEFT, MPI_COMM_WORLD, &requests[3]);
+        #pragma omp master
+        if (!rank)
+        {
+            start_time = MPI_Wtime();
+        }
 
-        MPI_Irecv(&A[2][il(i_min_overlap)][jl(j_min)], 1, row, top, TOP_TO_BOT, MPI_COMM_WORLD, &requests[4]);
-        MPI_Isend(&A[2][il(i_max-1)][jl(j_min)], 1, row, bot, TOP_TO_BOT, MPI_COMM_WORLD, &requests[5]);
+        double t = 0;
 
-        MPI_Irecv(&A[2][il(i_max_overlap-1)][jl(j_min)], 1, row, bot, BOT_TO_TOP, MPI_COMM_WORLD, &requests[6]);
-        MPI_Isend(&A[2][il(i_min)][jl(j_min)], 1, row, top, BOT_TO_TOP, MPI_COMM_WORLD, &requests[7]);
+        #pragma omp for
+        for (int ig = i_min_overlap; ig < i_max_overlap; ++ig)
+        {
+            double y = ig*hy;
+            int i = il(ig);
 
-        MPI_Waitall(8, requests, MPI_STATUS_IGNORE);
+            for (int jg = j_min_overlap; jg < j_max_overlap; ++jg)
+            {
+                double x = jg*hx;
+                int j = jl(jg);
 
-		double** tmp = A[0];
-		A[0] = A[1];
-		A[1] = A[2];
-		A[2] = tmp;
+                A[1][i][j] = phi(x, y);
+            }
+        }
 
+        double tn = t;
+		t += tau;
+
+        #pragma omp for
         for (int ig = max(1, i_min); ig < min(My-1, i_max); ++ig)
         {
             double y = ig*hy;
@@ -220,60 +191,116 @@ int main(int argc, char** argv)
                 double x = jg*hx;
                 int j = jl(jg);
 
-                A[2][i][j] = 2*A[1][i][j] - A[0][i][j]
-					+ tau2*(a2*((A[1][i+1][j] - 2*A[1][i][j] + A[1][i-1][j])/hy2
-					+ (A[1][i][j+1] - 2*A[1][i][j] + A[1][i][j-1])/hx2) + f(a, t, x, y));
+                A[2][i][j] = A[1][i][j] + tau*(psi(x, y)
+                    + tau_2*(a2 * ((A[1][i+1][j] - 2*A[1][i][j] + A[1][i-1][j])/hy2
+                    + (A[1][i][j+1] - 2*A[1][i][j] + A[1][i][j-1])/hx2) + f(a, tn, x, y)));
             }
         }
 
-		t += tau;
-
         apply_bc(Lx, Ly, Mx, My, hx, hy, i_min, i_max, j_min, j_max, i_min_overlap, j_min_overlap, t, A);
-    }
 
-    if (!rank)
-    {
-        elapsed_time = MPI_Wtime() - start_time;
-    }
-
-    for (int ig = i_min; ig < i_max; ++ig)
-    {
-        double y = ig*hy;
-        int i = il(ig);
-
-        for (int jg = j_min; jg < j_max; ++jg)
+        while (t < T - tau_2)
         {
-            double x = jg*hx;
-            int j = jl(jg);
+            tn = t;
+            t += tau;
 
-            double dif = u(T, x, y) - A[2][i][j];
-			norm_L2 += dif*dif;
-			norm_C = fmax(norm_C, fabs(dif));
+            #pragma omp single
+            {
+                MPI_Request requests[8];
+
+                MPI_Irecv(&A[2][il(i_min)][jl(j_min_overlap)], 1, column, left, LEFT_TO_RIGHT, MPI_COMM_WORLD, &requests[0]);
+                MPI_Isend(&A[2][il(i_min)][jl(j_max-1)], 1, column, right, LEFT_TO_RIGHT, MPI_COMM_WORLD, &requests[1]);
+
+                MPI_Irecv(&A[2][il(i_min)][jl(j_max_overlap-1)], 1, column, right, RIGHT_TO_LEFT, MPI_COMM_WORLD, &requests[2]);
+                MPI_Isend(&A[2][il(i_min)][jl(j_min)], 1, column, left, RIGHT_TO_LEFT, MPI_COMM_WORLD, &requests[3]);
+
+                MPI_Irecv(&A[2][il(i_min_overlap)][jl(j_min)], 1, row, top, TOP_TO_BOT, MPI_COMM_WORLD, &requests[4]);
+                MPI_Isend(&A[2][il(i_max-1)][jl(j_min)], 1, row, bot, TOP_TO_BOT, MPI_COMM_WORLD, &requests[5]);
+
+                MPI_Irecv(&A[2][il(i_max_overlap-1)][jl(j_min)], 1, row, bot, BOT_TO_TOP, MPI_COMM_WORLD, &requests[6]);
+                MPI_Isend(&A[2][il(i_min)][jl(j_min)], 1, row, top, BOT_TO_TOP, MPI_COMM_WORLD, &requests[7]);
+
+                MPI_Waitall(8, requests, MPI_STATUS_IGNORE);
+
+                double** tmp = A[0];
+                A[0] = A[1];
+                A[1] = A[2];
+                A[2] = tmp;
+            }
+
+            #pragma omp for
+            for (int ig = max(1, i_min); ig < min(My-1, i_max); ++ig)
+            {
+                double y = ig*hy;
+                int i = il(ig);
+
+                for (int jg = max(1, j_min); jg < min(Mx-1, j_max); ++jg)
+                {
+                    double x = jg*hx;
+                    int j = jl(jg);
+
+                    A[2][i][j] = 2*A[1][i][j] - A[0][i][j]
+                        + tau2*(a2*((A[1][i+1][j] - 2*A[1][i][j] + A[1][i-1][j])/hy2
+                        + (A[1][i][j+1] - 2*A[1][i][j] + A[1][i][j-1])/hx2) + f(a, tn, x, y));
+                }
+            }
+
+            apply_bc(Lx, Ly, Mx, My, hx, hy, i_min, i_max, j_min, j_max, i_min_overlap, j_min_overlap, t, A);
         }
-    }
 
-    if (rank)
-    {
-        MPI_Reduce(&norm_L2, NULL, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+        #pragma omp master
+        if (!rank)
+        {
+            elapsed_time = MPI_Wtime() - start_time;
+        }
 
-        MPI_Reduce(&norm_C, NULL, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        #pragma omp for reduction(+ : norm_L2) reduction(max : norm_C)
+        for (int ig = i_min; ig < i_max; ++ig)
+        {
+            double y = ig*hy;
+            int i = il(ig);
+
+            for (int jg = j_min; jg < j_max; ++jg)
+            {
+                double x = jg*hx;
+                int j = jl(jg);
+
+                double dif = u(T, x, y) - A[2][i][j];
+                norm_L2 += dif*dif;
+                norm_C = fmax(norm_C, fabs(dif));
+            }
+        }
+
+        #pragma omp single
+        {
+            if (rank)
+            {
+                MPI_Reduce(&norm_L2, NULL, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+
+                MPI_Reduce(&norm_C, NULL, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+            }
+            else
+            {
+                MPI_Reduce(MPI_IN_PLACE, &norm_L2, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+
+                MPI_Reduce(MPI_IN_PLACE, &norm_C, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+
+                norm_L2 = sqrt(hx*hy*norm_L2);
+            }
+        }
+
+        #pragma omp master
+        if (!rank)
+        {
+            printf("%.16lf %.16lf %.16lf %lf %lf %lf %d %d %d %d %d\n", norm_L2, norm_C, elapsed_time, T, Lx, Ly, N, Mx-1, My-1, omp_get_num_threads(), size);
+        }
         
-    }
-    else
-    {
-        MPI_Reduce(MPI_IN_PLACE, &norm_L2, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-
-        MPI_Reduce(MPI_IN_PLACE, &norm_C, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-
-        norm_L2 = sqrt(hx*hy*norm_L2);
-
-        printf("%.16lf %.16lf %.16lf %d %d %d\n", norm_L2, norm_C, elapsed_time, size, nx, ny);
-    }
-
-    for (int i = 0; i < 3; ++i)
-    {
-        free(A[i][0]);
-        free(A[i]);
+        #pragma omp for nowait
+        for (int i = 0; i < 3; ++i)
+        {
+            free(A[i][0]);
+            free(A[i]);
+        }
     }
 
     MPI_Type_free(&row);
@@ -344,6 +371,8 @@ void apply_bc(double Lx, double Ly, int Mx, int My, double hx, double hy, int i_
     if (i_min == 0)
     {
         int i = il(i_min);
+
+        #pragma omp for
         for (int jg = j_min; jg < j_max; ++jg)
         {
             double x = jg*hx;
@@ -355,6 +384,8 @@ void apply_bc(double Lx, double Ly, int Mx, int My, double hx, double hy, int i_
     if (i_max == My)
     {
         int i = il(i_max-1);
+
+        #pragma omp for
         for (int jg = j_min; jg < j_max; ++jg)
         {
             double x = jg*hx;
@@ -366,6 +397,8 @@ void apply_bc(double Lx, double Ly, int Mx, int My, double hx, double hy, int i_
     if (j_min == 0)
     {
         int j = jl(j_min);
+
+        #pragma omp for
         for (int ig = max(1, i_min); ig < min(My-1, i_max); ++ig)
         {
             double y = ig*hy;
@@ -377,6 +410,8 @@ void apply_bc(double Lx, double Ly, int Mx, int My, double hx, double hy, int i_
     if (j_max == Mx)
     {
         int j = jl(j_max-1);
+
+        #pragma omp for
         for (int ig = max(1, i_min); ig < min(My-1, i_max); ++ig)
         {
             double y = ig*hy;

@@ -18,3 +18,24 @@ module load gcc/gcc-7.4
 
 # Запуск программы MPI
 mpirun ./mpi_program
+
+
+#!/bin/bash
+
+#SBATCH --nodes=2
+#SBATCH --nodelist="vmnode38 vmnode39"
+
+#SBATCH --ntasks=8
+#SBATCH --ntasks_per_node=4
+#SBATCH --tasks-per-node=36
+
+#SBATCH --cpus-per-task=4
+
+#SBATCH --time=24:00:00
+
+#SBATCH --output=mpi%j.out
+#SBATCH --error=mpi_err.err
+
+export OMP_NUM_THREADS=8
+
+mpirun ./mpi_program
