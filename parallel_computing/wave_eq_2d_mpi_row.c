@@ -11,51 +11,98 @@
 #define TAG_BOT_TO_TOP 321
 
 
+// double phi(double x, double y)
+// {
+// 	return sin(4*x)*cos(5*y);
+// }
+
+
+// double psi(double x, double y)
+// {
+// 	return 6*cos(7*x)*sin(8*y);
+// }
+
+
+// double f(double a, double t, double x, double y)
+// {
+// 	return -9*cos(3*t)*sin(4*x)*cos(5*y) - 36*sin(6*t)*cos(7*x)*sin(8*y) + a*a*(41*cos(3*t)*sin(4*x)*cos(5*y) + 113*sin(6*t)*cos(7*x)*sin(8*y));
+// }
+
+// // u(t, 0, y)
+// double mu_left(double t, double x, double y)
+// {
+// 	return sin(6*t)*sin(8*y);
+// }
+
+// // u(t, x, 0)
+// double mu_bot(double t, double x, double y)
+// {
+// 	return cos(3*t)*sin(4*x);
+// }
+
+// // u(t, Lx, y)
+// double mu_right(double t, double x, double y)
+// {
+// 	return cos(3*t)*sin(4*x)*cos(5*y) + sin(6*t)*cos(7*x)*sin(8*y);
+// }
+
+// // u(t, x, Ly)
+// double mu_top(double t, double x, double y)
+// {
+// 	return cos(3*t)*sin(4*x)*cos(5*y) + sin(6*t)*cos(7*x)*sin(8*y);
+// }
+
+
+// double u(double t, double x, double y)
+// {
+// 	return cos(3*t)*sin(4*x)*cos(5*y) + sin(6*t)*cos(7*x)*sin(8*y);
+// }
+
 double phi(double x, double y)
 {
-	return sin(4*x)*cos(5*y);
+  return sin(3*x)*cos(4*y);
 }
 
 
 double psi(double x, double y)
 {
-	return 6*cos(7*x)*sin(8*y);
+  return 0;
 }
 
 
 double f(double a, double t, double x, double y)
 {
-	return -9*cos(3*t)*sin(4*x)*cos(5*y) - 36*sin(6*t)*cos(7*x)*sin(8*y) + a*a*(41*cos(3*t)*sin(4*x)*cos(5*y) + 113*sin(6*t)*cos(7*x)*sin(8*y));
+  return (25*a*a - 4)*cos(2*t)*sin(3*x)*cos(4*y);
 }
 
 // u(t, 0, y)
 double mu_left(double t, double x, double y)
 {
-	return sin(6*t)*sin(8*y);
+  return 0;
 }
 
 // u(t, x, 0)
 double mu_bot(double t, double x, double y)
 {
-	return cos(3*t)*sin(4*x);
+  return cos(2*t)*sin(3*x);
 }
 
 // u(t, Lx, y)
 double mu_right(double t, double x, double y)
 {
-	return cos(3*t)*sin(4*x)*cos(5*y) + sin(6*t)*cos(7*x)*sin(8*y);
+  return cos(2*t)*sin(3*x)*cos(4*y);
 }
 
 // u(t, x, Ly)
 double mu_top(double t, double x, double y)
 {
-	return cos(3*t)*sin(4*x)*cos(5*y) + sin(6*t)*cos(7*x)*sin(8*y);
+  return cos(2*t)*sin(3*x)*cos(4*y);
 }
 
 
 double u(double t, double x, double y)
 {
-	return cos(3*t)*sin(4*x)*cos(5*y) + sin(6*t)*cos(7*x)*sin(8*y);
+  return cos(2*t)*sin(3*x)*cos(4*y);
 }
 
 
@@ -65,7 +112,7 @@ int unstable(double a, double tau, double hx, double hy)
 }
 
 
-// mpirun --oversubscribe -n 8 ./wave_eq_2d_mpi_row 900 90 91 Почему не работает с этими параметрами?
+// mpirun --oversubscribe -n 8 ./wave_eq_2d_mpi_row 900 90 91 Почему неправильный ответ с этими параметрами?
 int main(int argc, char** argv)
 {
 	MPI_Init(&argc, &argv);

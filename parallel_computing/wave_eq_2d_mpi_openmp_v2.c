@@ -26,7 +26,7 @@ double mu_right(double t, double x, double y);
 double mu_top(double t, double x, double y);
 double u(double t, double x, double y);
 int unstable(double a, double tau, double hx, double hy);
-void apply_bc(double Lx, double Ly, int Mx, int My, double hx, double hy, int i_min, int i_max, int j_min, int j_max, int i_min_overlap, int j_min_overlap, double t, double*** A);
+void apply_bc(double Lx, double Ly, int Mx, int My, double hx, double hy, int i_min, int i_max, int j_min, int j_max, int i_min_overlap, int j_min_overlap, double t, double*** A, int ib, int ie);
 
 
 int main(int argc, char** argv)
@@ -112,6 +112,8 @@ int main(int argc, char** argv)
         i_min_overlap = i_min > 0 ? i_min - 1 : i_min,
         i_max_overlap = i_max < My ? i_max + 1 : i_max,
         i_size_overlap = i_max_overlap - i_min_overlap,
+        ib = max(1, i_min),
+        ie = min(My-1, i_max),
 
         j_rank = rank % nx,
         j_remainder = Mx % nx,
@@ -120,7 +122,9 @@ int main(int argc, char** argv)
         j_max = j_min + j_size,
         j_min_overlap = j_min > 0 ? j_min - 1 : j_min,
         j_max_overlap = j_max < Mx ? j_max + 1 : j_max,
-        j_size_overlap = j_max_overlap - j_min_overlap;
+        j_size_overlap = j_max_overlap - j_min_overlap,
+        jb = max(1, j_min),
+        je = min(Mx-1, j_max);
 
     const int
         left = j_rank - 1 < 0 ? MPI_PROC_NULL : rank - 1,
@@ -180,13 +184,13 @@ int main(int argc, char** argv)
         double tn = t;
 		t += tau;
 
-        #pragma omp for
-        for (int ig = max(1, i_min); ig < min(My-1, i_max); ++ig)
+        #pragma omp for nowait
+        for (int ig = ib; ig < ie; ++ig)
         {
             double y = ig*hy;
             int i = il(ig);
 
-            for (int jg = max(1, j_min); jg < min(Mx-1, j_max); ++jg)
+            for (int jg = jb; jg < je; ++jg)
             {
                 double x = jg*hx;
                 int j = jl(jg);
@@ -197,7 +201,9 @@ int main(int argc, char** argv)
             }
         }
 
-        apply_bc(Lx, Ly, Mx, My, hx, hy, i_min, i_max, j_min, j_max, i_min_overlap, j_min_overlap, t, A);
+        apply_bc(Lx, Ly, Mx, My, hx, hy, i_min, i_max, j_min, j_max, i_min_overlap, j_min_overlap, t, A, ib, ie);
+
+        #pragma omp barrier
 
         while (t < T - tau_2)
         {
@@ -237,13 +243,13 @@ int main(int argc, char** argv)
                 A[2] = tmp;
             }
 
-            #pragma omp for
-            for (int ig = max(1, i_min); ig < min(My-1, i_max); ++ig)
+            #pragma omp for nowait
+            for (int ig = ib; ig < ie; ++ig)
             {
                 double y = ig*hy;
                 int i = il(ig);
 
-                for (int jg = max(1, j_min); jg < min(Mx-1, j_max); ++jg)
+                for (int jg = jb; jg < je; ++jg)
                 {
                     double x = jg*hx;
                     int j = jl(jg);
@@ -254,7 +260,9 @@ int main(int argc, char** argv)
                 }
             }
 
-            apply_bc(Lx, Ly, Mx, My, hx, hy, i_min, i_max, j_min, j_max, i_min_overlap, j_min_overlap, t, A);
+            apply_bc(Lx, Ly, Mx, My, hx, hy, i_min, i_max, j_min, j_max, i_min_overlap, j_min_overlap, t, A, ib, ie);
+
+            #pragma omp barrier
         }
 
         #pragma omp master
@@ -375,13 +383,13 @@ int unstable(double a, double tau, double hx, double hy)
 }
 
 
-void apply_bc(double Lx, double Ly, int Mx, int My, double hx, double hy, int i_min, int i_max, int j_min, int j_max, int i_min_overlap, int j_min_overlap, double t, double*** A)
+void apply_bc(double Lx, double Ly, int Mx, int My, double hx, double hy, int i_min, int i_max, int j_min, int j_max, int i_min_overlap, int j_min_overlap, double t, double*** A, int ib, int ie)
 {
     if (i_min == 0)
     {
         int i = il(i_min);
 
-        #pragma omp for
+        #pragma omp for nowait
         for (int jg = j_min; jg < j_max; ++jg)
         {
             double x = jg*hx;
@@ -394,7 +402,7 @@ void apply_bc(double Lx, double Ly, int Mx, int My, double hx, double hy, int i_
     {
         int i = il(i_max-1);
 
-        #pragma omp for
+        #pragma omp for nowait
         for (int jg = j_min; jg < j_max; ++jg)
         {
             double x = jg*hx;
@@ -407,8 +415,8 @@ void apply_bc(double Lx, double Ly, int Mx, int My, double hx, double hy, int i_
     {
         int j = jl(j_min);
 
-        #pragma omp for
-        for (int ig = max(1, i_min); ig < min(My-1, i_max); ++ig)
+        #pragma omp for nowait
+        for (int ig = ib; ig < ie; ++ig)
         {
             double y = ig*hy;
             int i = il(ig);
@@ -420,8 +428,8 @@ void apply_bc(double Lx, double Ly, int Mx, int My, double hx, double hy, int i_
     {
         int j = jl(j_max-1);
 
-        #pragma omp for
-        for (int ig = max(1, i_min); ig < min(My-1, i_max); ++ig)
+        #pragma omp for nowait
+        for (int ig = ib; ig < ie; ++ig)
         {
             double y = ig*hy;
             int i = il(ig);
