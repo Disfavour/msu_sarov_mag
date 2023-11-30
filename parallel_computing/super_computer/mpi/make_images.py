@@ -116,7 +116,7 @@ def omp_compare(omp, mpi_per_node, mpi_per_node_v2, mpi_per_numa, mpi_per_numa_v
 
 
 def analytic(N, Mx, My, pnum):
-    return (N+1) * ((Mx+1) * (My+1)) * 381 / 2.3e9 / pnum
+    return N * Mx * My * 381 / 2.3e9 / pnum + N * 4 * 8*(My//3 + Mx//2) / 1.23e9
 
 
 def analytic_compare(mpi_per_node, mpi_per_node_v2, mpi_per_numa, mpi_per_numa_v2, fname):
@@ -145,6 +145,8 @@ def analytic_compare(mpi_per_node, mpi_per_node_v2, mpi_per_numa, mpi_per_numa_v
     plt.grid()
     plt.legend()
     plt.savefig(fname)
+    plt.semilogy()
+    plt.savefig(f'{fname}_log')
     plt.close()
 
     plt.figure(figsize=(6.4, 3.6), dpi=dpi, tight_layout=True)
