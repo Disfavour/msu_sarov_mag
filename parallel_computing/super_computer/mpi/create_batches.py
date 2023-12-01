@@ -19,7 +19,7 @@ with open(join(batches_dir, 'omp'), 'w') as f:
 #SBATCH --output=results/omp_%j.out
 #SBATCH --error=mpi_err.err
 
-export OMP_PROC_BIND=spread
+export OMP_PROC_BIND=close
 export OMP_PLACES=cores
 
 ''')
@@ -27,7 +27,7 @@ export OMP_PLACES=cores
     for threads in range(12, 37, 12):
          f.write(f'export OMP_NUM_THREADS={threads}\n')
          for N, Mx, My in params:
-              f.write(f'mpirun --bind-to none ./wave_eq_2d_mpi_openmp 1 1 {T} {Lx} {Ly} {N} {Mx} {My}\n')
+              f.write(f'mpirun --bind-to none ./wave_eq_2d_mpi_openmp {T} {Lx} {Ly} {N} {Mx} {My}\n')
 
 
 def create_batch_mpi_per_node(filename, prog):
@@ -42,7 +42,7 @@ def create_batch_mpi_per_node(filename, prog):
 #SBATCH --output=results/{filename}_%j.out
 #SBATCH --error=mpi_err.err
 
-export OMP_PROC_BIND=spread
+export OMP_PROC_BIND=close
 export OMP_PLACES=cores
 
 ''')
@@ -50,10 +50,12 @@ export OMP_PLACES=cores
         for threads in range(2, 37, 2):
             f.write(f'export OMP_NUM_THREADS={threads}\n')
             for N, Mx, My in params:
-                f.write(f'mpirun --bind-to none ./{prog} 2 3 {T} {Lx} {Ly} {N} {Mx} {My}\n')
+                f.write(f'mpirun --bind-to none ./{prog} {T} {Lx} {Ly} {N} {Mx} {My}\n')
 
-create_batch_mpi_per_node('mpi_per_node', 'wave_eq_2d_mpi_openmp')
-create_batch_mpi_per_node('mpi_per_node_v2', 'wave_eq_2d_mpi_openmp_v2')
+create_batch_mpi_per_node('mpi_node', 'wave_eq_2d_mpi_openmp')
+create_batch_mpi_per_node('mpi_node_isend', 'wave_eq_2d_mpi_openmp_isend')
+create_batch_mpi_per_node('mpi_node_send', 'wave_eq_2d_mpi_openmp_send')
+create_batch_mpi_per_node('mpi_node_sendrecv', 'wave_eq_2d_mpi_openmp_sendrecv')
 
 def create_batch_mpi_per_numa(filename, prog):
     with open(join(batches_dir, filename), 'w') as f:
@@ -75,23 +77,38 @@ export OMP_PLACES=cores
         for threads in range(1, 19):
             f.write(f'export OMP_NUM_THREADS={threads}\n')
             for N, Mx, My in params:
-                f.write(f'mpirun --map-by numa ./{prog} 3 4 {T} {Lx} {Ly} {N} {Mx} {My}\n')
+                f.write(f'mpirun --map-by numa ./{prog} {T} {Lx} {Ly} {N} {Mx} {My}\n')
 
-create_batch_mpi_per_numa('mpi_per_numa', 'wave_eq_2d_mpi_openmp')
-create_batch_mpi_per_numa('mpi_per_numa_v2', 'wave_eq_2d_mpi_openmp_v2')
+create_batch_mpi_per_numa('mpi_numa', 'wave_eq_2d_mpi_openmp')
+create_batch_mpi_per_numa('mpi_numa_isend', 'wave_eq_2d_mpi_openmp_isend')
+create_batch_mpi_per_numa('mpi_numa_send', 'wave_eq_2d_mpi_openmp_send')
+create_batch_mpi_per_numa('mpi_numa_sendrecv', 'wave_eq_2d_mpi_openmp_sendrecv')
 
 with open(join(base_dir, 'run_all'), 'w') as f:
-    for i in range(10):
+    k = 10
+    for i in range(k):
         f.write('sbatch batches/omp\n')
     
-    for i in range(10):
-        f.write('sbatch batches/mpi_per_node\n')
+    for i in range(k):
+        f.write('sbatch batches/mpi_node\n')
     
-    for i in range(10):
-        f.write('sbatch batches/mpi_per_node_v2\n')
+    for i in range(k):
+        f.write('sbatch batches/mpi_node_isend\n')
 
-    for i in range(10):
-        f.write('sbatch batches/mpi_per_numa\n')
+    for i in range(k):
+        f.write('sbatch batches/mpi_node_send\n')
 
-    for i in range(10):
-        f.write('sbatch batches/mpi_per_numa_v2\n')
+    for i in range(k):
+        f.write('sbatch batches/mpi_node_sendrecv\n')
+    
+    for i in range(k):
+        f.write('sbatch batches/mpi_numa\n')
+    
+    for i in range(k):
+        f.write('sbatch batches/mpi_numa_isend\n')
+
+    for i in range(k):
+        f.write('sbatch batches/mpi_numa_send\n')
+
+    for i in range(k):
+        f.write('sbatch batches/mpi_numa_sendrecv\n')

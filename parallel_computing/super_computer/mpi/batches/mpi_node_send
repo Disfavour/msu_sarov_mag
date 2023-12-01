@@ -1,0 +1,103 @@
+#!/bin/bash
+#SBATCH --nodes=6
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=36
+
+#SBATCH --time=24:00:00
+
+#SBATCH --output=results/mpi_node_send_%j.out
+#SBATCH --error=mpi_err.err
+
+export OMP_PROC_BIND=close
+export OMP_PLACES=cores
+
+export OMP_NUM_THREADS=2
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 500 600 400
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 1000 1200 800
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 2000 2400 1600
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 4000 4800 3200
+export OMP_NUM_THREADS=4
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 500 600 400
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 1000 1200 800
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 2000 2400 1600
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 4000 4800 3200
+export OMP_NUM_THREADS=6
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 500 600 400
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 1000 1200 800
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 2000 2400 1600
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 4000 4800 3200
+export OMP_NUM_THREADS=8
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 500 600 400
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 1000 1200 800
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 2000 2400 1600
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 4000 4800 3200
+export OMP_NUM_THREADS=10
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 500 600 400
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 1000 1200 800
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 2000 2400 1600
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 4000 4800 3200
+export OMP_NUM_THREADS=12
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 500 600 400
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 1000 1200 800
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 2000 2400 1600
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 4000 4800 3200
+export OMP_NUM_THREADS=14
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 500 600 400
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 1000 1200 800
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 2000 2400 1600
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 4000 4800 3200
+export OMP_NUM_THREADS=16
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 500 600 400
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 1000 1200 800
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 2000 2400 1600
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 4000 4800 3200
+export OMP_NUM_THREADS=18
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 500 600 400
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 1000 1200 800
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 2000 2400 1600
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 4000 4800 3200
+export OMP_NUM_THREADS=20
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 500 600 400
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 1000 1200 800
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 2000 2400 1600
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 4000 4800 3200
+export OMP_NUM_THREADS=22
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 500 600 400
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 1000 1200 800
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 2000 2400 1600
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 4000 4800 3200
+export OMP_NUM_THREADS=24
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 500 600 400
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 1000 1200 800
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 2000 2400 1600
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 4000 4800 3200
+export OMP_NUM_THREADS=26
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 500 600 400
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 1000 1200 800
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 2000 2400 1600
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 4000 4800 3200
+export OMP_NUM_THREADS=28
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 500 600 400
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 1000 1200 800
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 2000 2400 1600
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 4000 4800 3200
+export OMP_NUM_THREADS=30
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 500 600 400
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 1000 1200 800
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 2000 2400 1600
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 4000 4800 3200
+export OMP_NUM_THREADS=32
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 500 600 400
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 1000 1200 800
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 2000 2400 1600
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 4000 4800 3200
+export OMP_NUM_THREADS=34
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 500 600 400
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 1000 1200 800
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 2000 2400 1600
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 4000 4800 3200
+export OMP_NUM_THREADS=36
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 500 600 400
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 1000 1200 800
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 2000 2400 1600
+mpirun --bind-to none ./wave_eq_2d_mpi_openmp_send 5 6 4 4000 4800 3200

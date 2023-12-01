@@ -96,8 +96,6 @@ int main(int argc, char** argv)
         i_size_overlap = i_max_overlap - i_min_overlap,
         ib = max(1, i_min),
         ie = min(My-1, i_max),
-        ib_inner = i_min + 1,
-        ie_inner = i_max - 1,
 
         j_rank = coords[0],
         j_remainder = Mx % dims[0],
@@ -108,17 +106,13 @@ int main(int argc, char** argv)
         j_max_overlap = j_max < Mx ? j_max + 1 : j_max,
         j_size_overlap = j_max_overlap - j_min_overlap,
         jb = max(1, j_min),
-        je = min(Mx-1, j_max),
-        jb_inner = j_min + 1,
-        je_inner = j_max - 1;
+        je = min(Mx-1, j_max);
 
     MPI_Datatype row, column;
     MPI_Type_contiguous(j_size, MPI_DOUBLE, &row);
     MPI_Type_vector(i_size, 1, j_size_overlap, MPI_DOUBLE, &column);
     MPI_Type_commit(&row);
     MPI_Type_commit(&column);
-
-    MPI_Request requests[8];
 
     double* tmp[3];
     for (int k = 0; k < 3; ++k)
@@ -190,34 +184,37 @@ int main(int argc, char** argv)
             tn = t;
             t += tau;
 
-            #pragma omp master
+            #pragma omp single
             {
+                MPI_Request requests[8];
+
+                MPI_Irecv(&A[2][il(i_min)][jl(j_min_overlap)], 1, column, left, LEFT_TO_RIGHT, comm, &requests[0]);
+                MPI_Isend(&A[2][il(i_min)][jl(j_max-1)], 1, column, right, LEFT_TO_RIGHT, comm, &requests[1]);
+
+                MPI_Irecv(&A[2][il(i_min)][jl(j_max_overlap-1)], 1, column, right, RIGHT_TO_LEFT, comm, &requests[2]);
+                MPI_Isend(&A[2][il(i_min)][jl(j_min)], 1, column, left, RIGHT_TO_LEFT, comm, &requests[3]);
+
+                MPI_Irecv(&A[2][il(i_min_overlap)][jl(j_min)], 1, row, top, TOP_TO_BOT, comm, &requests[4]);
+                MPI_Isend(&A[2][il(i_max-1)][jl(j_min)], 1, row, bot, TOP_TO_BOT, comm, &requests[5]);
+
+                MPI_Irecv(&A[2][il(i_max_overlap-1)][jl(j_min)], 1, row, bot, BOT_TO_TOP, comm, &requests[6]);
+                MPI_Isend(&A[2][il(i_min)][jl(j_min)], 1, row, top, BOT_TO_TOP, comm, &requests[7]);
+
+                MPI_Waitall(8, requests, MPI_STATUS_IGNORE);
+
                 double** tmp = A[0];
                 A[0] = A[1];
                 A[1] = A[2];
                 A[2] = tmp;
-
-                MPI_Irecv(&A[1][il(i_min)][jl(j_min_overlap)], 1, column, left, LEFT_TO_RIGHT, comm, &requests[0]);
-                MPI_Isend(&A[1][il(i_min)][jl(j_max-1)], 1, column, right, LEFT_TO_RIGHT, comm, &requests[1]);
-
-                MPI_Irecv(&A[1][il(i_min)][jl(j_max_overlap-1)], 1, column, right, RIGHT_TO_LEFT, comm, &requests[2]);
-                MPI_Isend(&A[1][il(i_min)][jl(j_min)], 1, column, left, RIGHT_TO_LEFT, comm, &requests[3]);
-
-                MPI_Irecv(&A[1][il(i_min_overlap)][jl(j_min)], 1, row, top, TOP_TO_BOT, comm, &requests[4]);
-                MPI_Isend(&A[1][il(i_max-1)][jl(j_min)], 1, row, bot, TOP_TO_BOT, comm, &requests[5]);
-
-                MPI_Irecv(&A[1][il(i_max_overlap-1)][jl(j_min)], 1, row, bot, BOT_TO_TOP, comm, &requests[6]);
-                MPI_Isend(&A[1][il(i_min)][jl(j_min)], 1, row, top, BOT_TO_TOP, comm, &requests[7]);
             }
-            #pragma omp barrier
 
             #pragma omp for nowait
-            for (int ig = ib_inner; ig < ie_inner; ++ig)
+            for (int ig = ib; ig < ie; ++ig)
             {
                 double y = ig*hy;
                 int i = il(ig);
 
-                for (int jg = jb_inner; jg < je_inner; ++jg)
+                for (int jg = jb; jg < je; ++jg)
                 {
                     double x = jg*hx;
                     int j = jl(jg);
@@ -229,78 +226,6 @@ int main(int argc, char** argv)
             }
 
             apply_bc(Lx, Ly, Mx, My, hx, hy, i_min, i_max, j_min, j_max, i_min_overlap, j_min_overlap, t, A, ib, ie);
-
-            #pragma omp master
-            MPI_Waitall(8, requests, MPI_STATUS_IGNORE);
-            #pragma omp barrier
-
-            if (ib < ib_inner)
-            {
-                double y = ib*hy;
-                int i = il(ib);
-
-                #pragma omp for nowait
-                for (int jg = jb; jg < je; ++jg)
-                {
-                    double x = jg*hx;
-                    int j = jl(jg);
-
-                    A[2][i][j] = 2*A[1][i][j] - A[0][i][j]
-                        + tau2*(a2*((A[1][i+1][j] - 2*A[1][i][j] + A[1][i-1][j])/hy2
-                        + (A[1][i][j+1] - 2*A[1][i][j] + A[1][i][j-1])/hx2) + f(a2, tn, x, y));
-                }
-            }
-
-            if (ie > ie_inner)
-            {
-                double y = (ie-1)*hy;
-                int i = il(ie-1);
-
-                #pragma omp for nowait
-                for (int jg = jb; jg < je; ++jg)
-                {
-                    double x = jg*hx;
-                    int j = jl(jg);
-
-                    A[2][i][j] = 2*A[1][i][j] - A[0][i][j]
-                        + tau2*(a2*((A[1][i+1][j] - 2*A[1][i][j] + A[1][i-1][j])/hy2
-                        + (A[1][i][j+1] - 2*A[1][i][j] + A[1][i][j-1])/hx2) + f(a2, tn, x, y));
-                }
-            }
-
-            if (jb < jb_inner)
-            {
-                double x = jb*hx;
-                int j = jl(jb);
-
-                #pragma omp for nowait
-                for (int ig = ib; ig < ie; ++ig)
-                {
-                    double y = ig*hy;
-                    int i = il(ig);
-
-                    A[2][i][j] = 2*A[1][i][j] - A[0][i][j]
-                        + tau2*(a2*((A[1][i+1][j] - 2*A[1][i][j] + A[1][i-1][j])/hy2
-                        + (A[1][i][j+1] - 2*A[1][i][j] + A[1][i][j-1])/hx2) + f(a2, tn, x, y));
-                }
-            }
-
-            if (je > je_inner)
-            {
-                double x = (je-1)*hx;
-                int j = jl(je-1);
-
-                #pragma omp for nowait
-                for (int ig = ib; ig < ie; ++ig)
-                {
-                    double y = ig*hy;
-                    int i = il(ig);
-
-                    A[2][i][j] = 2*A[1][i][j] - A[0][i][j]
-                        + tau2*(a2*((A[1][i+1][j] - 2*A[1][i][j] + A[1][i-1][j])/hy2
-                        + (A[1][i][j+1] - 2*A[1][i][j] + A[1][i][j-1])/hx2) + f(a2, tn, x, y));
-                }
-            }
 
             #pragma omp barrier
         }

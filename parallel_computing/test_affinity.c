@@ -18,8 +18,8 @@ int main(int argc, char** argv)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     int len;
-	char pName[MPI_MAX_PROCESSOR_NAME];
-	MPI_Get_processor_name(pName, &len);
+    char pName[MPI_MAX_PROCESSOR_NAME];
+    MPI_Get_processor_name(pName, &len);
 
     cpu_set_t mask;
     CPU_ZERO(&mask);
@@ -49,7 +49,7 @@ int main(int argc, char** argv)
     MPI_Barrier(MPI_COMM_WORLD);
 
     #pragma omp parallel
-	{
+    {
         int
             tr = omp_get_thread_num(),
             ts = omp_get_num_threads();
