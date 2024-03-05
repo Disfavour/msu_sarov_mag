@@ -1,0 +1,22 @@
+#!/bin/bash
+echo privet
+sleep 1
+echo privet123
+
+if [ -f "main.c" ]; then
+    cat "main.c"
+else
+    echo "File not found"
+fi
+
+if test -f "masd.c" ; then
+    cat "masd.c"
+else
+    echo "File not found"
+fi
+
+I=0
+while [ $I -le 101 ]; do
+    echo $I
+    I=$(( $I + 1 ))
+done

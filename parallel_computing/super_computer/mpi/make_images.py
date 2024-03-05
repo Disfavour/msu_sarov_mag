@@ -3,179 +3,64 @@ import matplotlib.pyplot as plt
 from os.path import dirname, join
 
 dpi = 300
-c = ('b', 'g', 'r', 'c', 'm', 'y', 'k')
-l = ('-', '--', ':', '-.') # 
-lw = [0.9, 1.2, 1.5]
-
-p1 = (34, 258, 2006, 16085)
-labels = ('D', 'C', 'B', 'A')
+ltypes = ('-', '--', '-.', ':')
+colors = ('b', 'g', 'r', 'c', 'm', 'y', 'k')
+labels = ('A', 'B', 'C', 'D')
 # norm_L2, norm_C, elapsed_time, T, Lx, Ly, N, Mx, My, omp_get_num_threads(), size
 
 
-def mpi_compare(mpi_per_node, mpi_per_node_v2, mpi_per_numa, mpi_per_numa_v2, fname):
-    p = np.array(range(12, 217, 12))
-    
-    mpi_per_node = mpi_per_node[np.isin(mpi_per_node[:, 9], range(2, 37, 2))]
-    mpi_per_node_v2 = mpi_per_node_v2[np.isin(mpi_per_node_v2[:, 9], range(2, 37, 2))]
+def plot_compare(p, t_p1, data, fname):
+    maxp = len(p) * len(labels)
 
     plt.figure(figsize=(6.4, 3.6), dpi=dpi, tight_layout=True)
-    for i in range(3, -1, -1):
-        plt.plot(p, mpi_per_node[i::4, 2], f'{l[0]}{c[i]}', label=labels[i])
-        plt.plot(p, mpi_per_node_v2[i::4, 2], f'{l[1]}{c[i]}')
-        plt.plot(p, mpi_per_numa[i::4, 2], f'{l[2]}{c[i]}')
-        plt.plot(p, mpi_per_numa_v2[i::4, 2], f'{l[3]}{c[i]}')
-    plt.xlabel(r"Количество нитей")
-    plt.ylabel(r"Время (секунды)")
+    for lt, d in zip(ltypes, data):
+        for i, c in zip(range(len(labels)), colors):
+            plt.plot(p, d[i:maxp:4, 2], lt+c)
+    plt.xlabel(r'Количество вычислительных ядер')
+    plt.ylabel(r'Время (секунды)')
     plt.xticks(p)
+    plt.legend(labels)
     plt.grid()
-    plt.legend()
     plt.savefig(fname)
     plt.semilogy()
     plt.savefig(f'{fname}_log')
     plt.close()
 
     plt.figure(figsize=(6.4, 3.6), dpi=dpi, tight_layout=True)
-    for i in range(3, -1, -1):
-        plt.plot(p, p1[i] / mpi_per_node[i::4, 2], f'{l[0]}{c[i]}', label=labels[i])
-        plt.plot(p, p1[i] / mpi_per_node_v2[i::4, 2], f'{l[1]}{c[i]}')
-        plt.plot(p, p1[i] / mpi_per_numa[i::4, 2], f'{l[2]}{c[i]}')
-        plt.plot(p, p1[i] / mpi_per_numa_v2[i::4, 2], f'{l[3]}{c[i]}')
-    plt.xlabel(r"Количество нитей")
-    plt.ylabel(r"Ускорение")
+    for lt, d in zip(ltypes, data):
+        for i, c, t1 in zip(range(len(labels)), colors, t_p1):
+            plt.plot(p, t1 / d[i:maxp:4, 2], lt+c)
+    plt.xlabel(r'Количество вычислительных ядер')
+    plt.ylabel(r'Ускорение')
     plt.xticks(p)
+    plt.legend(labels)
     plt.grid()
-    plt.legend()
     plt.savefig(f'{fname}_S')
     plt.close()
 
     plt.figure(figsize=(6.4, 3.6), dpi=dpi, tight_layout=True)
-    for i in range(3, -1, -1):
-        plt.plot(p, p1[i] / mpi_per_node[i::4, 2] / p, f'{l[0]}{c[i]}', label=labels[i])
-        plt.plot(p, p1[i] / mpi_per_node_v2[i::4, 2] / p, f'{l[1]}{c[i]}')
-        plt.plot(p, p1[i] / mpi_per_numa[i::4, 2] / p, f'{l[2]}{c[i]}')
-        plt.plot(p, p1[i] / mpi_per_numa_v2[i::4, 2] / p, f'{l[3]}{c[i]}')
-    plt.xlabel(r"Количество нитей")
-    plt.ylabel(r"Эффективность распараллеливания")
+    for lt, d in zip(ltypes, data):
+        for i, c, t1 in zip(range(len(labels)), colors, t_p1):
+            plt.plot(p, t1 / d[i:maxp:4, 2] / p, lt+c)
+    plt.xlabel(r'Количество вычислительных ядер')
+    plt.ylabel(r'Эффективность распараллеливания')
     plt.xticks(p)
+    plt.legend(labels)
     plt.grid()
-    plt.legend()
-    plt.savefig(f'{fname}_E')
-    plt.close()
-
-
-def omp_compare(omp, mpi_per_node, mpi_per_node_v2, mpi_per_numa, mpi_per_numa_v2, fname):
-    p = np.array((12, 24, 36))
-
-    mpi_per_node = mpi_per_node[np.isin(mpi_per_node[:, 9], (2, 4, 6))]
-    mpi_per_node_v2 = mpi_per_node_v2[np.isin(mpi_per_node_v2[:, 9], (2, 4, 6))]
-    mpi_per_numa = mpi_per_numa[np.isin(mpi_per_numa[:, 9], (1, 2, 3))]
-    mpi_per_numa_v2 = mpi_per_numa_v2[np.isin(mpi_per_numa_v2[:, 9], (1, 2, 3))]
-
-    plt.figure(figsize=(6.4, 3.6), dpi=dpi, tight_layout=True)
-    for i in range(3, -1, -1):
-        plt.plot(p, omp[i::4, 2], f'{l[0]}{c[i]}', label=labels[i])
-        plt.plot(p, mpi_per_node_v2[i::4, 2], f'{l[1]}{c[i]}')
-        plt.plot(p, mpi_per_numa_v2[i::4, 2], f'{l[2]}{c[i]}')
-    plt.xlabel(r"Количество нитей")
-    plt.ylabel(r"Время (секунды)")
-    plt.xticks(p)
-    plt.grid()
-    plt.legend()
-    plt.savefig(fname)
-    plt.semilogy()
-    plt.savefig(f'{fname}_log')
-    plt.close()
-
-    plt.figure(figsize=(6.4, 3.6), dpi=dpi, tight_layout=True)
-    for i in range(3, -1, -1):
-        plt.plot(p, p1[i] / omp[i::4, 2], f'{l[0]}{c[i]}', label=labels[i])
-        plt.plot(p, p1[i] / mpi_per_node_v2[i::4, 2], f'{l[1]}{c[i]}')
-        plt.plot(p, p1[i] / mpi_per_numa_v2[i::4, 2], f'{l[2]}{c[i]}')
-    
-    plt.xlabel(r"Количество нитей")
-    plt.ylabel(r"Ускорение")
-    plt.xticks(p)
-    plt.grid()
-    plt.legend()
-    plt.savefig(f'{fname}_S')
-    plt.close()
-
-    plt.figure(figsize=(6.4, 3.6), dpi=dpi, tight_layout=True)
-    for i in range(3, -1, -1):
-        plt.plot(p, p1[i] / omp[i::4, 2] / p, f'{l[0]}{c[i]}', label=labels[i])
-        plt.plot(p, p1[i] / mpi_per_node_v2[i::4, 2] / p, f'{l[1]}{c[i]}')
-        plt.plot(p, p1[i] / mpi_per_numa_v2[i::4, 2] / p, f'{l[2]}{c[i]}')
-    
-    plt.xlabel(r"Количество нитей")
-    plt.ylabel(r"Эффективность распараллеливания")
-    plt.xticks(p)
-    plt.grid()
-    plt.legend()
     plt.savefig(f'{fname}_E')
     plt.close()
 
 
 def analytic(N, Mx, My, pnum):
-    return N * Mx * My * 381 / 2.3e9 / pnum + N * 4 * 8*(My//3 + Mx//2) / 1.23e9
+    nx, ny = 4, 3
+    return N * Mx * My * 381 / 2.3e9 / pnum + N * 4 * 8*(Mx//nx + My//ny) / 1.23e9
 
 
-def analytic_compare(mpi_per_node, mpi_per_node_v2, mpi_per_numa, mpi_per_numa_v2, fname):
-    p = np.arange(12, 217, 12)
-    
-    mpi_per_node = mpi_per_node[np.isin(mpi_per_node[:, 9], range(2, 37, 2))]
-    mpi_per_node_v2 = mpi_per_node_v2[np.isin(mpi_per_node_v2[:, 9], range(2, 37, 2))]
-
-    analytic_vec = np.vectorize(analytic)
-
-    analytic_A = analytic_vec(4000, 4800, 3200, p)
-    analytic_B = analytic_vec(2000, 2400, 1600, p)
-    analytic_C = analytic_vec(1000, 1200, 800, p)
-    analytic_D = analytic_vec(500, 600, 400, p)
-    data = np.array((analytic_D, analytic_C, analytic_B, analytic_A, analytic_B))
-
-    plt.figure(figsize=(6.4, 3.6), dpi=dpi, tight_layout=True)
-    for i in range(3, -1, -1):
-        plt.plot(p, data[i, :], f'{l[0]}{c[i]}', label=labels[i])
-        plt.plot(p, mpi_per_node_v2[i::4, 2], f'{l[1]}{c[i]}')
-        plt.plot(p, mpi_per_numa_v2[i::4, 2], f'{l[2]}{c[i]}')
-        pass
-    plt.xlabel(r"Количество нитей")
-    plt.ylabel(r"Время (секунды)")
-    plt.xticks(p)
-    plt.grid()
-    plt.legend()
-    plt.savefig(fname)
-    plt.semilogy()
-    plt.savefig(f'{fname}_log')
-    plt.close()
-
-    plt.figure(figsize=(6.4, 3.6), dpi=dpi, tight_layout=True)
-    for i in range(3, -1, -1):
-        plt.plot(p, p1[i] / data[i, :], f'{l[0]}{c[i]}', label=labels[i])
-        plt.plot(p, p1[i] / mpi_per_node_v2[i::4, 2], f'{l[1]}{c[i]}')
-        plt.plot(p, p1[i] / mpi_per_numa_v2[i::4, 2], f'{l[2]}{c[i]}')
-        pass
-    plt.xlabel(r"Количество нитей")
-    plt.ylabel(r"Ускорение")
-    plt.xticks(p)
-    plt.grid()
-    plt.legend()
-    plt.savefig(f'{fname}_S')
-    plt.close()
-
-    plt.figure(figsize=(6.4, 3.6), dpi=dpi, tight_layout=True)
-    for i in range(3, -1, -1):
-        plt.plot(p, p1[i] / data[i, :] / p, f'{l[0]}{c[i]}', label=labels[i])
-        plt.plot(p, p1[i] / mpi_per_node_v2[i::4, 2] / p, f'{l[1]}{c[i]}')
-        plt.plot(p, p1[i] / mpi_per_numa_v2[i::4, 2] / p, f'{l[2]}{c[i]}')
-        pass
-    plt.xlabel(r"Количество нитей")
-    plt.ylabel(r"Эффективность распараллеливания")
-    plt.xticks(p)
-    plt.grid()
-    plt.legend()
-    plt.savefig(f'{fname}_E')
-    plt.close()
+def load_data(fname, s, e):
+    tmp = np.loadtxt(join(results_dir, f'{fname}_{s}.out'))
+    for i in range(s+1, e+1):
+        tmp = np.minimum(tmp, np.loadtxt(join(results_dir, f'{fname}_{i}.out')))
+    return tmp
 
 
 if __name__ == '__main__':
@@ -183,28 +68,52 @@ if __name__ == '__main__':
     images_dir = join(base_dir, 'images')
     results_dir = join(base_dir, 'results')
 
-    omp = np.loadtxt(join(results_dir, 'omp_299.out'))
-    for i in range(300, 309):
-        omp = np.minimum(omp, np.loadtxt(join(results_dir, f'omp_{i}.out')))
+    p_mpi = np.array(range(12, 217, 12))
+    p_omp = np.array(range(12, 37, 12))
 
-    mpi_per_node = np.loadtxt(join(results_dir, 'mpi_per_node_309.out'))
-    for i in range(310, 319):
-        mpi_per_node = np.minimum(mpi_per_node, np.loadtxt(join(results_dir, f'mpi_per_node_{i}.out')))
+    t = load_data('p1', 614, 619)
+    t_p1 = t[:4][:, 2]
+    t_p1_O3 = t[4:][:, 2]
 
-    mpi_per_node_v2 = np.loadtxt(join(results_dir, 'mpi_per_node_v2_319.out'))
-    for i in range(320, 329):
-        mpi_per_node_v2 = np.minimum(mpi_per_node_v2, np.loadtxt(join(results_dir, f'mpi_per_node_v2_{i}.out')))
+    omp = load_data('omp', 433, 442)
+    omp_O3 = load_data('omp_O3', 443, 452)
+    mpi_node = load_data('mpi_node', 453, 462)
+    mpi_node_isend = load_data('mpi_node_isend', 463, 472)
+    mpi_node_send = load_data('mpi_node_send', 473, 482)
+    mpi_node_sendrecv = load_data('mpi_node_sendrecv', 483, 492)
+    mpi_numa = load_data('mpi_numa', 493, 502)
+    mpi_numa_isend = load_data('mpi_numa_isend', 503, 512)
+    mpi_numa_send = load_data('mpi_numa_send', 513, 522)
+    mpi_numa_sendrecv = load_data('mpi_numa_sendrecv', 523, 532)
+    mpi_node_O3 = load_data('mpi_node_O3', 533, 542)
+    mpi_node_isend_O3 = load_data('mpi_node_isend_O3', 543, 552)
+    mpi_node_send_O3 = load_data('mpi_node_send_O3', 553, 562)
+    mpi_node_sendrecv_O3 = load_data('mpi_node_sendrecv_O3', 563, 572)
+    mpi_numa_O3 = load_data('mpi_numa_O3', 573, 582)
+    mpi_numa_isend_O3 = load_data('mpi_numa_isend_O3', 583, 592)
+    mpi_numa_send_O3 = load_data('mpi_numa_send_O3', 593, 602)
+    mpi_numa_sendrecv_O3 = load_data('mpi_numa_sendrecv_O3', 603, 612)
 
-    mpi_per_numa = np.loadtxt(join(results_dir, 'mpi_per_numa_329.out'))
-    for i in range(330, 339):
-        mpi_per_numa = np.minimum(mpi_per_numa, np.loadtxt(join(results_dir, f'mpi_per_numa_{i}.out')))
+    analytic_res = []
+    analytic_res.append(analytic(500, 600, 400, p_mpi))
+    analytic_res.append(analytic(1000, 1200, 800, p_mpi))
+    analytic_res.append(analytic(2000, 2400, 1600, p_mpi))
+    analytic_res.append(analytic(4000, 4800, 3200, p_mpi))
 
-    mpi_per_numa_v2 = np.loadtxt(join(results_dir, 'mpi_per_numa_v2_339.out'))
-    for i in range(340, 349):
-        mpi_per_numa_v2 = np.minimum(mpi_per_numa_v2, np.loadtxt(join(results_dir, f'mpi_per_numa_v2_{i}.out')))
+    analytical = np.empty(mpi_node.shape)
+    for i, data in enumerate(analytic_res):
+        analytical[i::4, 2] = data
 
-    omp_compare(omp, mpi_per_node, mpi_per_node_v2, mpi_per_numa, mpi_per_numa_v2, join(images_dir, 'openmp_compare'))
+    plot_compare(p_mpi, t_p1, (mpi_node, mpi_node_isend, mpi_node_send, mpi_node_sendrecv), join(images_dir, 'mpi_node'))
+    plot_compare(p_mpi, t_p1, (mpi_numa, mpi_numa_isend, mpi_numa_send, mpi_numa_sendrecv), join(images_dir, 'mpi_numa'))
 
-    mpi_compare(mpi_per_node, mpi_per_node_v2, mpi_per_numa, mpi_per_numa_v2, join(images_dir, 'mpi_compare'))
+    plot_compare(p_mpi, t_p1, (mpi_node, mpi_node_isend, mpi_numa, mpi_numa_isend), join(images_dir, 'node_numa'))
 
-    analytic_compare(mpi_per_node, mpi_per_node_v2, mpi_per_numa, mpi_per_numa_v2, join(images_dir, 'analytic_compare'))
+    plot_compare(p_mpi, t_p1_O3, (mpi_node_O3, mpi_node_isend_O3, mpi_node_send_O3, mpi_node_sendrecv_O3), join(images_dir, 'mpi_node_O3'))
+    plot_compare(p_mpi, t_p1_O3, (mpi_numa_O3, mpi_numa_isend_O3, mpi_numa_send_O3, mpi_numa_sendrecv_O3), join(images_dir, 'mpi_numa_O3'))
+
+    plot_compare(p_omp, t_p1, (omp, mpi_node, mpi_numa), join(images_dir, 'omp'))
+
+    plot_compare(p_mpi, t_p1, (analytical, mpi_node, mpi_numa), join(images_dir, 'analytical'))
+
+    plot_compare(p_mpi, t_p1_O3, (analytical, mpi_node_O3, mpi_numa_O3), join(images_dir, 'analytical_O3'))

@@ -1,0 +1,12 @@
+#!/bin/bash
+echo "Choose option"
+echo "1 sublime"
+echo "2 firefox"
+
+read doing
+
+case $doing in
+1) subl;;
+2) firefox;;
+*) echo "Incorrect"
+esac

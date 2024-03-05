@@ -1,0 +1,12 @@
+tests=tests/
+for i in {1..2}; do
+    ./calculator < "${tests}test$i" > "${tests}tmp"
+    difference=$(diff "${tests}tmp" "${tests}test${i}_answer")
+
+    if [ "$difference" != "" ]; then
+        echo "Тест $i НЕ пройден"
+    else
+        echo "Тест $i пройден"
+    fi
+done
+rm ${tests}tmp

@@ -1,0 +1,6 @@
+cat calc1 > calc.c
+cat >> calc.c
+cat calc2 >> calc.c
+gcc calc.c -o calc
+./calc
+rm calc
