@@ -2,7 +2,6 @@ import re
 
 def differentiate(polynom):
     elements = re.findall(r'[+-]?\d+(?:x(?:\^\d+)?)?', polynom)
-    print(elements)
     result = []
     for element in elements:
         parts = re.fullmatch(r'([+-]?)(\d+)(?:(x)(?:(\^)(\d+))?)?', element).groups()
