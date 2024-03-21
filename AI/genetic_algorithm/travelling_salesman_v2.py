@@ -211,7 +211,7 @@ if __name__ == '__main__':
 
     populations_size = 200
     nepochs = 5000
-    mutation_probability = 0.016
+    mutation_probability = 0.02
 
     start_time = time.time()
 

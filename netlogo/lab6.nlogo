@@ -1,124 +1,155 @@
-patches-own [val]
-breed [particles particle]
-particles-own [vx vy p-val p-x p-y]
-globals [g-val g-x g-y]
-
-to-report eval-target [x y]
-  set x x / 10
-  set y y / 10
-  if target-function = "sphere"    [report x ^ 2 + y ^ 2]
-  if target-function = "rastrigin" [report x ^ 2 + y ^ 2 + 10 * (2 - cos (360 * x) - cos(360 * y))]
-  if target-function = "random"    [report random-float 1]
-end
+globals [nest food]
+breed [ants ant]
+ants-own [ph state]
+patches-own [p-type ph-n ph-f]
 
 to setup
   clear-all
-  setup-landscape
-  create-particles particles-number
+
+  ask patches [set p-type "free"]
+  set nest patch 0 0
+  set food n-of food-sources patches with [distance nest > (max-pxcor * 0.8)]
+
+  ask nest
   [
-    setxy random-xcor random-ycor
-    set shape "circle"
-    set size 4
-    set vx dx
-    set vy dy
-    set p-val val
-    set p-x xcor
-    set p-y ycor
+    set p-type "nest"
+    sprout 1
+    [
+      set size 4
+      set color sky
+      set shape "circle"
+    ]
   ]
+
+  ask food
+  [
+    set p-type "food"
+    sprout 1
+    [
+      set size 4
+      set color red
+      set shape "circle"
+    ]
+  ]
+
+  ask patches [color-patch]
+
+  create-ants ants-number
+  [
+    setxy [pxcor] of nest [pycor] of nest
+    set size 2
+    set shape "bug"
+  ]
+
   reset-ticks
 end
 
-to setup-landscape
-  ask patches [set val eval-target pxcor pycor]
-  if target-function = "random"
-  [repeat 50 [diffuse val 0.5]]
-
-  let minv min [val] of patches
-  let maxv max [val] of patches
-  ask patches [set pcolor scale-color violet val maxv minv]
-
-  ;let pxcor_with_min_val [pxcor] of patches with [val = minv]
-  ;let pycor_with_min_val [pycor] of patches with [val = minv]
-  let min_patch min-one-of patches [val]
-
-  create-turtles 1
-  [
-    set color orange
-    set size 8
-    set shape "x"
-    ;setxy 0 0
-    ;setxy first pxcor_with_min_val / 10 first pycor_with_min_val / 10
-    setxy [pxcor] of min_patch [pycor] of min_patch
-  ]
+to color-patch
+  let p (ph-n + ph-f) / 2
+  let c 255 * (1 - p)
+  set pcolor rgb c 255 c
 end
 
 to go
-  if not trace? [clear-drawing]
-  ask particles [ifelse trace? [pen-down] [pen-up]]
+  ask ants
+  [
+    if p-type = "nest" or p-type = "food"
+    [set ph 0.1]
 
-  ask particles [
-    set vx gamma * vx
-    set vy gamma * vy
+    rotate-ant
+    fd ant-vel
+    put-pheromone
+  ]
+  diffuse ph-n 0.01
+  diffuse ph-f 0.01
 
-    if xcor != p-x or ycor != p-y
-    [
-      let h towardsxy  p-x p-y
-      let d distancexy p-x p-y
-      let alpha random-float alpha-max
-      set vx vx + alpha * d * sin h
-      set vy vy + alpha * d * cos h
-    ]
-
-    if xcor != g-x or ycor != g-y
-    [
-      let h towardsxy  g-x g-y
-      let d distancexy g-x g-y
-      let beta random-float beta-max
-      set vx vx + beta * d * sin h
-      set vy vy + beta * d * cos h
-    ]
-
-    facexy xcor + vx ycor + vy
-    ifelse (vx ^ 2 + vy ^ 2) > v-max
-    [fd v-max]
-    [fd sqrt (vx ^ 2 + vy ^ 2)]
-
-    let new_val val
-    if val < p-val
-    [
-      set p-val val
-      set p-x xcor
-      set p-y ycor
-    ]
+  ask patches
+  [
+    set ph-n ph-n * 0.99
+    set ph-f ph-f * 0.99
+    if ph-n < 0.001
+    [set ph-n 0]
+    if ph-f < 0.001
+    [set ph-f 0]
   ]
 
-  ask min-one-of particles [p-val] [
-    set g-val p-val
-    set g-x p-x
-    set g-y p-y
-  ]
+  ask patches
+  [color-patch]
 
   tick
 end
 
-to-report best_target_val
-  report min [val] of particles
+to put-pheromone
+  if state = "forward"
+  [
+    set ph-n ph-n + ph
+    if ph-n > 1
+    [set ph-n 1]
+  ]
+  if state = "backward"
+  [
+    set ph-f ph-f + ph
+    if ph-f > 1
+    [set ph-f 1]
+  ]
+
+  set ph ph * 0.99
 end
 
-to-report avg_target_val
-  report sum [val] of particles / count particles
+to rotate-ant
+  if p-type = "nest"
+  [
+    set state "forward"
+    set color red
+    rt 180
+    stop
+  ]
+
+  if p-type = "food"
+  [
+    set state "backward"
+    set color blue
+    rt 180
+    stop
+  ]
+
+  if state = "forward"
+  [
+    let f min-one-of food [distance myself]
+    if distance f < vision
+    [
+      set heading towards f
+      stop
+    ]
+  ]
+  if state = "backward"
+  [
+    if distance nest < vision
+    [
+      set heading towards nest
+      stop
+    ]
+  ]
+
+  let p patches in-cone vision angle with [distance myself > vision / 2]
+  if state = "forward" [
+    set heading towards max-one-of p [ph-f]
+  ]
+  if state = "backward" [
+    set heading towards max-one-of p [ph-n]
+  ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
 0
-5
-410
-416
+10
+513
+524
 -1
 -1
-2.0
+5.0
 1
-2
+10
 1
 1
 1
@@ -126,31 +157,21 @@ GRAPHICS-WINDOW
 1
 1
 1
--100
-100
--100
-100
+-50
+50
+-50
+50
 1
 1
 1
 ticks
 30.0
 
-CHOOSER
-426
-5
-564
-50
-target-function
-target-function
-"sphere" "rastrigin" "random"
-2
-
 BUTTON
-430
-56
-503
-89
+533
+14
+607
+48
 NIL
 setup
 NIL
@@ -164,25 +185,40 @@ NIL
 1
 
 SLIDER
-431
+539
+67
+712
+101
+food-sources
+food-sources
+1
 100
-610
-133
-particles-number
-particles-number
-2
-30
-30.0
+2.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+544
+122
+717
+156
+ants-number
+ants-number
+0
+1000
+130.0
 1
 1
 NIL
 HORIZONTAL
 
 BUTTON
-432
-142
-495
-175
+542
+174
+606
+208
 NIL
 go
 T
@@ -195,95 +231,50 @@ NIL
 NIL
 0
 
-SWITCH
-435
-192
-554
-225
-trace?
-trace?
-0
-1
--1000
-
 SLIDER
-437
-241
-609
-274
-alpha-max
-alpha-max
+549
+222
+722
+256
+ant-vel
+ant-vel
 0
-0.1
-0.05
-0.01
-1
-NIL
-HORIZONTAL
-
-SLIDER
-440
-289
-612
-322
-beta-max
-beta-max
-0
-0.1
-0.05
-0.01
-1
-NIL
-HORIZONTAL
-
-SLIDER
-444
-337
-616
-370
-v-max
-v-max
-1
-5
-2.0
-1
-1
-NIL
-HORIZONTAL
-
-SLIDER
-446
-382
-618
-415
-gamma
-gamma
-0
+10
 1.0
-0.976
-0.001
+1
 1
 NIL
 HORIZONTAL
 
-PLOT
-3
-419
-413
-636
-target function
+SLIDER
+549
+268
+722
+302
+vision
+vision
+2
+10
+7.0
+1
+1
 NIL
+HORIZONTAL
+
+SLIDER
+552
+319
+725
+353
+angle
+angle
+90
+180
+90.0
+1
+1
 NIL
-0.0
-10.0
-0.0
-10.0
-true
-true
-"" ""
-PENS
-"best" 1.0 0 -2674135 true "" "plot best_target_val"
-"average" 1.0 0 -11033397 true "" "plot avg_target_val"
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?

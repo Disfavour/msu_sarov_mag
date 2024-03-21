@@ -8,6 +8,7 @@ to-report eval-target [x y]
   set y y / 10
   if target-function = "sphere"    [report x ^ 2 + y ^ 2]
   if target-function = "rastrigin" [report x ^ 2 + y ^ 2 + 10 * (2 - cos (360 * x) - cos(360 * y))]
+  if target-function = "bimodal"   [report 2 - exp (-(x ^ 2 + y ^ 2) / 10) - exp (-((x - 5) ^ 2 + (y - 5) ^ 2) / 10)]
 end
 
 to setup
@@ -138,8 +139,8 @@ CHOOSER
 50
 target-function
 target-function
-"sphere" "rastrigin"
-1
+"sphere" "rastrigin" "bimodal"
+2
 
 BUTTON
 430
@@ -166,8 +167,8 @@ SLIDER
 particles-number
 particles-number
 2
-30
-10.0
+300
+300.0
 1
 1
 NIL
@@ -289,7 +290,7 @@ vision
 vision
 1
 50
-1.0
+5.0
 1
 1
 NIL

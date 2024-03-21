@@ -1,156 +1,219 @@
-patches-own [val]
-breed [particles particle]
-particles-own [vx vy p-val p-x p-y]
-globals [g-val g-x g-y]
+breed [nodes node]
+links-own [len ph visits best? best-cur?]
+breed [ants ant]
+globals [best-len sel rnd]
+ants-own [current to-visit visited-links path-len]
 
-to-report eval-target [x y]
-  set x x / 10
-  set y y / 10
-  if target-function = "sphere"    [report x ^ 2 + y ^ 2]
-  if target-function = "rastrigin" [report x ^ 2 + y ^ 2 + 10 * (2 - cos (360 * x) - cos(360 * y))]
-  if target-function = "random"    [report random-float 1]
-end
 
 to setup
   clear-all
-  setup-landscape
-  create-particles particles-number
+
+  ask patches
+  [set pcolor white]
+  create-nodes graph-size
+  [setup-node]
+
+  ask nodes
   [
-    setxy random-xcor random-ycor
-    set shape "circle"
-    set size 4
-    set vx dx
-    set vy dy
-    set p-val val
-    set p-x xcor
-    set p-y ycor
+    create-links-with other nodes
+    [
+      set color blue
+      set ph 1
+      set len link-length / max-pxcor
+    ]
   ]
+
+  create-ants ants-number
+  [hide-turtle]
+
   reset-ticks
 end
 
-to setup-landscape
-  ask patches [set val eval-target pxcor pycor]
-  if target-function = "random"
-  [repeat 50 [diffuse val 0.5]]
+to setup-node
+  set shape "circle"
+  set size 1
+  set color orange
 
-  let minv min [val] of patches
-  let maxv max [val] of patches
-  ask patches [set pcolor scale-color violet val maxv minv]
-
-  ;let pxcor_with_min_val [pxcor] of patches with [val = minv]
-  ;let pycor_with_min_val [pycor] of patches with [val = minv]
-  let min_patch min-one-of patches [val]
-
-  create-turtles 1
+  if layout = "random"
+  [setxy random-xcor random-ycor]
+  if layout = "circle"
   [
-    set color orange
-    set size 8
-    set shape "x"
-    ;setxy 0 0
-    ;setxy first pxcor_with_min_val / 10 first pycor_with_min_val / 10
-    setxy [pxcor] of min_patch [pycor] of min_patch
+    let a 360 / graph-size * who
+    let r max-pxcor - 1
+    setxy (r * sin a) (r * cos a)
+  ]
+  if layout = "grid"
+  [
+    let n ceiling sqrt graph-size
+    let d (2 * max-pxcor - 2) / (n - 1)
+    set xcor min-pxcor + 1 + d * (who mod n)
+    set ycor min-pycor + 1 + d * floor (who / n)
   ]
 end
 
 to go
-  if not trace? [clear-drawing]
-  ask particles [ifelse trace? [pen-down] [pen-up]]
-
-  ask particles [
-    set vx gamma * vx
-    set vy gamma * vy
-
-    if xcor != p-x or ycor != p-y
-    [
-      let h towardsxy  p-x p-y
-      let d distancexy p-x p-y
-      let alpha random-float alpha-max
-      set vx vx + alpha * d * sin h
-      set vy vy + alpha * d * cos h
-    ]
-
-    if xcor != g-x or ycor != g-y
-    [
-      let h towardsxy  g-x g-y
-      let d distancexy g-x g-y
-      let beta random-float beta-max
-      set vx vx + beta * d * sin h
-      set vy vy + beta * d * cos h
-    ]
-
-    facexy xcor + vx ycor + vy
-    ifelse (vx ^ 2 + vy ^ 2) > v-max
-    [fd v-max]
-    [fd sqrt (vx ^ 2 + vy ^ 2)]
-
-    let new_val val
-    if val < p-val
-    [
-      set p-val val
-      set p-x xcor
-      set p-y ycor
-    ]
+  ask ants
+  [
+    set current 0
+    set to-visit (range 1 graph-size)
+    set visited-links no-links
+    set path-len 0
   ]
 
-  ask min-one-of particles [p-val] [
-    set g-val p-val
-    set g-x p-x
-    set g-y p-y
+  ask links
+  [set visits 0]
+
+  repeat graph-size [ask ants [move-ant]]
+
+  ask ants
+  [
+    let dt Q / path-len / graph-size
+    ask visited-links [set ph ph + dt]
   ]
 
+  check-best
+
+  let max-ph max [ph] of links
+  ask links
+  [
+    set ph ph / max-ph
+    color-link
+  ]
   tick
 end
 
-to-report best_target_val
-  report min [val] of particles
+to move-ant
+  let next choose-next
+  set to-visit remove next to-visit
+  let l link current next
+  set visited-links (link-set l visited-links)
+  ask l
+  [set visits visits + 1]
+  set path-len path-len + [len] of l
+  set current next
 end
 
-to-report avg_target_val
-  report sum [val] of particles / count particles
+to-report choose-next
+  let weights map get-weight to-visit
+  set rnd random-float sum weights
+  set sel 0
+  (foreach to-visit weights select)
+  report sel
+end
+
+to-report get-weight [c]
+  let l link current c
+  report [(ph ^ alpha) / (len ^ beta)] of l
+end
+
+to select [c w]
+  if rnd <= w and rnd > 0
+  [
+    set sel c
+  ]
+  set rnd rnd - w
+end
+
+to check-best
+  let best-ant min-one-of ants [path-len]
+  let bp [path-len] of best-ant
+
+  if ticks = 0 or bp < best-len
+  [
+    set best-len bp
+    ask links
+    [set best? false]
+    ask [visited-links] of best-ant
+    [set best? true]
+  ]
+
+  ask links
+  [set best-cur? false]
+  ask [visited-links] of best-ant
+  [set best-cur? true]
+end
+
+to color-link
+  if show-best?
+  [
+    set hidden? not best? and not best-cur?
+
+    ifelse best? and best-cur?
+    [
+      set thickness 0.4
+      set color black
+    ]
+    [
+      ifelse best?
+      [
+        set thickness 0.2
+        set color green
+      ]
+      [
+        set thickness 0.1
+        set color violet
+      ]
+    ]
+  ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
 0
-5
-410
-416
+13
+437
+451
 -1
 -1
-2.0
+13.0
 1
-2
+10
 1
 1
 1
 0
+0
+0
 1
-1
-1
--100
-100
--100
-100
+-16
+16
+-16
+16
 1
 1
 1
 ticks
 30.0
 
-CHOOSER
-426
+SLIDER
+469
 5
-564
-50
-target-function
-target-function
-"sphere" "rastrigin" "random"
+642
+38
+graph-size
+graph-size
+4
+100
+36.0
+1
+1
+NIL
+HORIZONTAL
+
+CHOOSER
+474
+57
+613
+102
+layout
+layout
+"random" "circle" "grid"
 2
 
 BUTTON
-430
-56
-503
-89
+478
+118
+552
+152
 NIL
 setup
 NIL
@@ -164,25 +227,25 @@ NIL
 1
 
 SLIDER
-431
+483
+172
+656
+205
+ants-number
+ants-number
+1
 100
-610
-133
-particles-number
-particles-number
-2
-30
-30.0
+50.0
 1
 1
 NIL
 HORIZONTAL
 
 BUTTON
-432
-142
-495
-175
+485
+222
+549
+256
 NIL
 go
 T
@@ -195,95 +258,78 @@ NIL
 NIL
 0
 
+SLIDER
+489
+274
+662
+307
+alpha
+alpha
+0
+5
+1.0
+0.1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+492
+332
+665
+365
+beta
+beta
+0
+5
+2.0
+0.1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+497
+383
+670
+416
+Q
+Q
+0
+5
+1.0
+0.1
+1
+NIL
+HORIZONTAL
+
 SWITCH
-435
-192
-554
-225
-trace?
-trace?
+495
+442
+630
+475
+show-best?
+show-best?
 0
 1
 -1000
 
-SLIDER
-437
-241
-609
-274
-alpha-max
-alpha-max
+BUTTON
+568
+229
+632
+263
+NIL
+go
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
 0
-0.1
-0.05
-0.01
-1
-NIL
-HORIZONTAL
-
-SLIDER
-440
-289
-612
-322
-beta-max
-beta-max
-0
-0.1
-0.05
-0.01
-1
-NIL
-HORIZONTAL
-
-SLIDER
-444
-337
-616
-370
-v-max
-v-max
-1
-5
-2.0
-1
-1
-NIL
-HORIZONTAL
-
-SLIDER
-446
-382
-618
-415
-gamma
-gamma
-0
-1.0
-0.976
-0.001
-1
-NIL
-HORIZONTAL
-
-PLOT
-3
-419
-413
-636
-target function
-NIL
-NIL
-0.0
-10.0
-0.0
-10.0
-true
-true
-"" ""
-PENS
-"best" 1.0 0 -2674135 true "" "plot best_target_val"
-"average" 1.0 0 -11033397 true "" "plot avg_target_val"
 
 @#$#@#$#@
 ## WHAT IS IT?

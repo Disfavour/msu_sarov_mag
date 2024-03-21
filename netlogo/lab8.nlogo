@@ -1,158 +1,113 @@
-patches-own [val]
-breed [particles particle]
-particles-own [vx vy p-val p-x p-y]
-globals [g-val g-x g-y]
+patches-own [free? p-val d-val]
+globals [free-patches]
+breed [targets target]
 
-to-report eval-target [x y]
-  set x x / 10
-  set y y / 10
-  if target-function = "sphere"    [report x ^ 2 + y ^ 2]
-  if target-function = "rastrigin" [report x ^ 2 + y ^ 2 + 10 * (2 - cos (360 * x) - cos(360 * y))]
-  if target-function = "random"    [report random-float 1]
-end
-
-to setup
+to setup-map
   clear-all
-  setup-landscape
-  create-particles particles-number
+
+  ask patches [set free? true]
+  if map-type = "blackhole"
   [
-    setxy random-xcor random-ycor
-    set shape "circle"
-    set size 4
-    set vx dx
-    set vy dy
-    set p-val val
-    set p-x xcor
-    set p-y ycor
+    ask patches with [pxcor >= -10 and pxcor <= 10 and pycor >= -10 and pycor <= 10]
+    [set free? false]
   ]
+  if map-type = "bricks"
+  [
+    ask patches
+    [
+      let n count neighbors with [not free?]
+      if n = 0
+      [set free? false]
+    ]
+  ]
+
+  set free-patches patches with [free?]
+
+  ask patches
+  [
+    ifelse free?
+    [set pcolor yellow]
+    [set pcolor black]
+  ]
+
   reset-ticks
 end
 
-to setup-landscape
-  ask patches [set val eval-target pxcor pycor]
-  if target-function = "random"
-  [repeat 50 [diffuse val 0.5]]
-
-  let minv min [val] of patches
-  let maxv max [val] of patches
-  ask patches [set pcolor scale-color violet val maxv minv]
-
-  ;let pxcor_with_min_val [pxcor] of patches with [val = minv]
-  ;let pycor_with_min_val [pycor] of patches with [val = minv]
-  let min_patch min-one-of patches [val]
-
-  create-turtles 1
+to setup-target
+  ask targets [die]
+  let target-patch one-of free-patches
+  ask target-patch
   [
-    set color orange
-    set size 8
-    set shape "x"
-    ;setxy 0 0
-    ;setxy first pxcor_with_min_val / 10 first pycor_with_min_val / 10
-    setxy [pxcor] of min_patch [pycor] of min_patch
-  ]
-end
-
-to go
-  if not trace? [clear-drawing]
-  ask particles [ifelse trace? [pen-down] [pen-up]]
-
-  ask particles [
-    set vx gamma * vx
-    set vy gamma * vy
-
-    if xcor != p-x or ycor != p-y
+    sprout-targets 1
     [
-      let h towardsxy  p-x p-y
-      let d distancexy p-x p-y
-      let alpha random-float alpha-max
-      set vx vx + alpha * d * sin h
-      set vy vy + alpha * d * cos h
-    ]
-
-    if xcor != g-x or ycor != g-y
-    [
-      let h towardsxy  g-x g-y
-      let d distancexy g-x g-y
-      let beta random-float beta-max
-      set vx vx + beta * d * sin h
-      set vy vy + beta * d * cos h
-    ]
-
-    facexy xcor + vx ycor + vy
-    ifelse (vx ^ 2 + vy ^ 2) > v-max
-    [fd v-max]
-    [fd sqrt (vx ^ 2 + vy ^ 2)]
-
-    let new_val val
-    if val < p-val
-    [
-      set p-val val
-      set p-x xcor
-      set p-y ycor
+      set color white
+      set shape "x"
+      set size 2
     ]
   ]
 
-  ask min-one-of particles [p-val] [
-    set g-val p-val
-    set g-x p-x
-    set g-y p-y
+  ask free-patches
+  [
+    set p-val 0
   ]
 
-  tick
-end
+  let minv 0
+  let maxv 0
+  while [minv < 1e-7]
+  [
+    ask target-patch [set p-val p-val + 0.1]
+    ask free-patches
+    [
+      set d-val p-val / 20
+      let n count neighbors with [free?]
 
-to-report best_target_val
-  report min [val] of particles
-end
 
-to-report avg_target_val
-  report sum [val] of particles / count particles
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
 0
-5
-410
-416
+12
+419
+432
 -1
 -1
-2.0
+10.0
 1
-2
+10
 1
 1
 1
 0
+0
+0
 1
-1
-1
--100
-100
--100
-100
-1
-1
+-20
+20
+-20
+20
+0
+0
 1
 ticks
 30.0
 
 CHOOSER
-426
-5
-564
+454
+4
+593
 50
-target-function
-target-function
-"sphere" "rastrigin" "random"
-2
+map-type
+map-type
+"free" "blackhole" "bricks"
+1
 
 BUTTON
-430
-56
-503
-89
+459
+69
+569
+103
 NIL
-setup
+setup-map
 NIL
 1
 T
@@ -163,29 +118,14 @@ NIL
 NIL
 1
 
-SLIDER
-431
-100
-610
-133
-particles-number
-particles-number
-2
-30
-30.0
-1
-1
-NIL
-HORIZONTAL
-
 BUTTON
-432
-142
-495
-175
+462
+119
+586
+153
 NIL
-go
-T
+setup-target
+NIL
 1
 T
 OBSERVER
@@ -193,97 +133,7 @@ NIL
 NIL
 NIL
 NIL
-0
-
-SWITCH
-435
-192
-554
-225
-trace?
-trace?
-0
 1
--1000
-
-SLIDER
-437
-241
-609
-274
-alpha-max
-alpha-max
-0
-0.1
-0.05
-0.01
-1
-NIL
-HORIZONTAL
-
-SLIDER
-440
-289
-612
-322
-beta-max
-beta-max
-0
-0.1
-0.05
-0.01
-1
-NIL
-HORIZONTAL
-
-SLIDER
-444
-337
-616
-370
-v-max
-v-max
-1
-5
-2.0
-1
-1
-NIL
-HORIZONTAL
-
-SLIDER
-446
-382
-618
-415
-gamma
-gamma
-0
-1.0
-0.976
-0.001
-1
-NIL
-HORIZONTAL
-
-PLOT
-3
-419
-413
-636
-target function
-NIL
-NIL
-0.0
-10.0
-0.0
-10.0
-true
-true
-"" ""
-PENS
-"best" 1.0 0 -2674135 true "" "plot best_target_val"
-"average" 1.0 0 -11033397 true "" "plot avg_target_val"
 
 @#$#@#$#@
 ## WHAT IS IT?
