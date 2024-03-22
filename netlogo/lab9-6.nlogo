@@ -1,204 +1,178 @@
-patches-own [free? p-val d-val]
-globals [free-patches]
 breed [targets target]
-breed [bacteria bacterium]
-bacteria-own [val]
+patches-own [pval]
+breed [places place]
+places-own [val] ;?
+breed [bees bee]
+bees-own [val my-place]
 
-to setup-map
+to setup
   clear-all
 
-  ask patches [set free? true]
-  if map-type = "blackhole"
-  [
-    ask patches with [pxcor >= -10 and pxcor <= 10 and pycor >= -10 and pycor <= 10]
-    [set free? false]
-  ]
-  if map-type = "bricks"
-  [
-    ask patches
-    [
-      let n count neighbors with [not free?]
-      if n = 0
-      [set free? false]
-    ]
-  ]
+  create-targets targets-number
+  [setup-target]
 
-  set free-patches patches with [free?]
+  color-patches
 
-  ask patches
-  [
-    ifelse free?
-    [set pcolor yellow]
-    [set pcolor black]
-  ]
+  create-places places-number
+  [setup-place]
 
   reset-ticks
+end
+
+to setup-place
+  set size place-size
+  set shape "rect"
+  set color white
+  setxy random-xcor random-ycor
 end
 
 to setup-target
-  ask targets [die]
-  let target-patch one-of free-patches
-  ask target-patch
-  [
-    sprout-targets 1
-    [
-      set color white
-      set shape "x"
-      set size 2
-    ]
-  ]
+  set size 6
+  set shape "x"
+  set color white
+  setxy random-xcor random-ycor
+end
 
-  ask free-patches
-  [
-    set p-val 0
-  ]
+to-report eval [x y]
+  report min [distancexy x y] of targets
+end
 
-  let minv 0
-  let maxv 0
-  while [minv < 1e-7]
-  [
-    ask target-patch [set p-val p-val + 0.1]
-    ask free-patches
-    [
-      set d-val p-val / 20
-      let n count neighbors with [free?]
-      set p-val p-val - n * d-val
-    ]
-    ask free-patches
-    [
-      let free_neighbors neighbors with [free?]
-      set p-val p-val + sum [d-val] of free_neighbors
-    ]
+to color-patches
+  ask patches
+  [set pval eval pxcor pycor]
 
-    set minv min [p-val] of free-patches
-    set maxv max [p-val] of free-patches
+  let max-val max [pval] of patches
 
-    ask free-patches
-    [
-      set p-val (p-val - minv) / (maxv - minv)
-      set pcolor my-scale-color (p-val ^ 0.3)
-    ]
-  ]
-  display
+  ask patches
+  [set pcolor my-scale-color (pval / max-val)]
 end
 
 to-report my-scale-color [x]
-  report rgb 255 (255 - x * 255) 0
-end
-
-to setup-colony
-  ask bacteria [die]
-  let free-patch one-of free-patches
-
-  ask free-patch
-  [
-    sprout-bacteria colony-size
-    [
-      set size 0.8
-      set shape "circle"
-      set val eval-me
-    ]
-  ]
-
-  reset-ticks
-end
-
-to-report eval-me
-  ifelse swarm?
-  [
-    let a mean [h distance myself] of bacteria
-    report p-val + 0.0001 * a
-  ]
-  [report p-val]
-
+  set x x ^ 0.75
+  report rgb 0 (255 * x) (255 - 255 * x)
 end
 
 to go
-  if not trace? [clear-drawing]
-  ask bacteria [ifelse trace? [pen-down] [pen-up]]
+  ask targets
+  [fd target-vel]
+  color-patches
 
-  ask bacteria [move]
+  ask places [set val eval xcor ycor]
+  ask bees [die]
+
+  if foragers-number > 0
+  [
+    ask places
+    [
+      hatch-bees foragers-number
+      [
+        set my-place myself
+        set xcor xcor + (random-float 1 - 0.5) * place-size
+        set ycor ycor + (random-float 1 - 0.5) * place-size
+        set val eval xcor ycor
+        set size 1.5
+        set shape "circle"
+        set color yellow
+      ]
+
+      let mates bees with [my-place = myself]
+      let best min-one-of mates [val]
+      if [val] of best < val [move-to best]
+    ]
+  ]
+
+  create-bees scouts-number
+  [
+    setxy random-xcor random-ycor
+    set val eval xcor ycor
+    set size 2.5
+    set shape "circle"
+    set color yellow
+
+    let worst_place max-one-of places [val]
+    if val < [val] of worst_place
+    [
+      ask worst_place
+      [
+        move-to myself
+        set val eval xcor ycor
+      ]
+    ]
+  ]
+
+  ask places
+  [
+    let closest min-one-of other places [distance myself]
+    if distance closest < place-size / 2
+    [
+      ifelse val < [val] of closest
+      [
+        ask closest
+        [setxy random-xcor random-ycor]
+      ]
+      [setxy random-xcor random-ycor]
+    ]
+  ]
   tick
 end
 
-to move
-  let p patch-ahead vel
-  if p = nobody or [not free?] of p [
-    rt random 360 stop
-  ]
-  fd vel
-
-  let new-val eval-me
-  if new-val < val [rt random 360]
-  set val new-val
+to-report dist_to_target [cur_target]
+  report min [distance cur_target] of places
 end
 
-to-report h [r]
-  let x r / d
-  report 2 * exp(- x * x) - 3 * exp(-4 * x * x)
+to-report worst_dist
+  report max [dist_to_target self] of targets
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
 0
-12
-418
-431
+10
+410
+421
 -1
 -1
-10.0
+2.0
 1
 10
 1
 1
 1
 0
-0
-0
 1
--20
-20
--20
-20
+1
+1
+-100
+100
+-100
+100
 1
 1
 1
 ticks
 30.0
 
-CHOOSER
-454
-4
-593
-49
-map-type
-map-type
-"free" "blackhole" "bricks"
-2
+SLIDER
+433
+7
+605
+40
+targets-number
+targets-number
+1
+20
+10.0
+1
+1
+NIL
+HORIZONTAL
 
 BUTTON
-459
-69
-569
-103
+435
+51
+508
+84
 NIL
-setup-map
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-462
-119
-586
-153
-NIL
-setup-target
+setup
 NIL
 1
 T
@@ -210,42 +184,25 @@ NIL
 1
 
 SLIDER
-460
-177
-632
-210
-colony-size
-colony-size
-1
-100
-50.0
-1
+435
+94
+607
+127
+target-vel
+target-vel
+0
+20
+0.0
+0.1
 1
 NIL
 HORIZONTAL
 
 BUTTON
-464
-228
-588
-261
-NIL
-setup-colony
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-468
-275
-531
-308
+437
+136
+500
+169
 NIL
 go
 T
@@ -258,57 +215,83 @@ NIL
 NIL
 0
 
-SWITCH
-472
-318
-575
-351
-trace?
-trace?
-0
-1
--1000
-
 SLIDER
-474
-361
-646
-394
-vel
-vel
-0.1
+440
+178
+612
+211
+places-number
+places-number
 1
-0.3
-0.1
+100
+10.0
+1
 1
 NIL
 HORIZONTAL
 
-SWITCH
-474
-404
-584
-437
-swarm?
-swarm?
-0
-1
--1000
-
 SLIDER
-476
-451
-648
-484
-d
-d
+443
+220
+615
+253
+place-size
+place-size
 1
-20
-5.0
+40
+15.0
 1
 1
 NIL
 HORIZONTAL
+
+SLIDER
+447
+268
+625
+301
+foragers-number
+foragers-number
+0
+100
+50.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+449
+317
+621
+350
+scouts-number
+scouts-number
+0
+100
+0.0
+1
+1
+NIL
+HORIZONTAL
+
+PLOT
+0
+420
+409
+570
+Maximum distance to target
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot worst_dist"
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -538,6 +521,11 @@ Polygon -7500403 true true 165 180 165 210 225 180 255 120 210 135
 Polygon -7500403 true true 135 105 90 60 45 45 75 105 135 135
 Polygon -7500403 true true 165 105 165 135 225 105 255 45 210 60
 Polygon -7500403 true true 135 90 120 45 150 15 180 45 165 90
+
+rect
+false
+0
+Rectangle -7500403 false true 0 0 300 315
 
 sheep
 false

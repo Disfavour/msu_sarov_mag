@@ -1,9 +1,0 @@
-{
-    "files.associations": {
-        "numbers": "c",
-        "omp.h": "c",
-        "file.h": "c",
-        "types.h": "c",
-        "shm.h": "c"
-    }
-}

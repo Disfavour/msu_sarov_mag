@@ -135,7 +135,12 @@ end
 
 to-report h [r]
   let x r / d
-  report 2 * exp(- x * x) - 3 * exp(-4 * x * x)
+  if type-hr = "red"
+  [report 2 * exp(- x * x) - 3 * exp(-4 * x * x)]
+  if type-hr = "green"
+  [report 1 - 1 / exp x]
+  if type-hr = "blue"
+  [report 1 / exp (x)]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -173,7 +178,7 @@ CHOOSER
 map-type
 map-type
 "free" "blackhole" "bricks"
-2
+0
 
 BUTTON
 459
@@ -309,6 +314,16 @@ d
 1
 NIL
 HORIZONTAL
+
+CHOOSER
+10
+447
+148
+492
+type-hr
+type-hr
+"red" "green" "blue"
+1
 
 @#$#@#$#@
 ## WHAT IS IT?

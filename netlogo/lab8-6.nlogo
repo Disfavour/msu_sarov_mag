@@ -118,6 +118,25 @@ to go
   ask bacteria [ifelse trace? [pen-down] [pen-up]]
 
   ask bacteria [move]
+
+  ask bacteria
+  [
+    if random-float 1 < chance_to_compete
+    [
+      let opponent one-of other bacteria
+      let opponent_val [val] of opponent
+
+      ifelse val > opponent_val
+      [
+        ask opponent [die]
+        hatch-bacteria 1
+      ]
+      [
+        ask opponent [hatch-bacteria 1]
+        die
+      ]
+    ]
+  ]
   tick
 end
 
@@ -173,7 +192,7 @@ CHOOSER
 map-type
 map-type
 "free" "blackhole" "bricks"
-2
+0
 
 BUTTON
 459
@@ -306,6 +325,21 @@ d
 20
 5.0
 1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+34
+456
+236
+489
+chance_to_compete
+chance_to_compete
+0.0
+1
+0.5
+0.1
 1
 NIL
 HORIZONTAL

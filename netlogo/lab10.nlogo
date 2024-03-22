@@ -1,151 +1,153 @@
-patches-own [free? p-val d-val]
-globals [free-patches]
-breed [targets target]
-breed [bacteria bacterium]
-bacteria-own [val]
+globals [n start target]
+turtles-own [x f]
 
-to setup-map
+to setup
   clear-all
 
-  ask patches [set free? true]
-  if map-type = "blackhole"
-  [
-    ask patches with [pxcor >= -10 and pxcor <= 10 and pycor >= -10 and pycor <= 10]
-    [set free? false]
-  ]
-  if map-type = "bricks"
-  [
-    ask patches
-    [
-      let n count neighbors with [not free?]
-      if n = 0
-      [set free? false]
-    ]
-  ]
+  setup-layout
 
-  set free-patches patches with [free?]
+  let d [distance target] of start
+  set n floor (1.3 * d)
 
-  ask patches
-  [
-    ifelse free?
-    [set pcolor yellow]
-    [set pcolor black]
-  ]
+  create-population
 
   reset-ticks
 end
 
-to setup-target
-  ask targets [die]
-  let target-patch one-of free-patches
-  ask target-patch
+to setup-layout
+  ask patches [set pcolor white]
+
+  if layout = "random"
   [
-    sprout-targets 1
-    [
-      set color white
-      set shape "x"
-      set size 2
-    ]
+    ask n-of 100 patches
+    [set pcolor gray]
+  ]
+  if layout = "bar"
+  [
+    ask patches with [pxcor > -8 and pxcor < 8 and pycor = 0]
+    [set pcolor gray]
+  ]
+  if layout = "hole"
+  [
+    let hole random-pxcor
+    ask patches with [pxcor != hole and pycor = 0]
+    [set pcolor gray]
   ]
 
-  ask free-patches
-  [
-    set p-val 0
-  ]
-
-  let minv 0
-  let maxv 0
-  while [minv < 1e-7]
-  [
-    ask target-patch [set p-val p-val + 0.1]
-    ask free-patches
-    [
-      set d-val p-val / 20
-      let n count neighbors with [free?]
-      set p-val p-val - n * d-val
-    ]
-    ask free-patches
-    [
-      let free_neighbors neighbors with [free?]
-      set p-val p-val + sum [d-val] of free_neighbors
-    ]
-
-    set minv min [p-val] of free-patches
-    set maxv max [p-val] of free-patches
-
-    ask free-patches
-    [
-      set p-val (p-val - minv) / (maxv - minv)
-      set pcolor my-scale-color (p-val ^ 0.3)
-    ]
-  ]
-  display
+  set start patch 0 (min-pycor + 1)
+  ask start [set pcolor blue]
+  set target patch 0 (max-pycor - 1)
+  ask target [set pcolor red]
 end
 
-to-report my-scale-color [x]
-  report rgb 255 (255 - x * 255) 0
+to create-population
+  create-turtles pop-size
+  [
+    set shape "circle"
+    set size 0.8
+
+    set x (list random 360)
+    repeat (n - 1)
+    [set x lput (90 - random 180) x]
+
+    eval 1
+  ]
 end
 
-to setup-colony
-  ask bacteria [die]
-  let free-patch one-of free-patches
-
-  ask free-patch
+to eval [w]
+  move-to start
+  set heading 0
+  if w > 0 [pd set pen-size w]
+  let k 0
+  let stop? false
+  while [k < n and not stop?]
   [
-    sprout-bacteria colony-size
-    [
-      set size 0.8
-      set shape "circle"
-      set val eval-me
-    ]
+    rt item k x
+    let p-a patch-ahead 1
+    ifelse p-a = nobody or [pcolor] of p-a = gray
+    [set stop? true] [fd 1]
+    set k k + 1
   ]
-
-  reset-ticks
-end
-
-to-report eval-me
-  ifelse swarm?
-  [
-    let a mean [h distance myself] of bacteria
-    report p-val + 0.0001 * a
-  ]
-  [report p-val]
-
+  pu
+  set f distance target
 end
 
 to go
-  if not trace? [clear-drawing]
-  ask bacteria [ifelse trace? [pen-down] [pen-up]]
+  clear-drawing
+  ask turtles [set hidden? hide-turtles?]
 
-  ask bacteria [move]
+  ask turtles [select]
+  ask turtles [crossover]
+  ask turtles [mutate]
+
+  ifelse not show-best?
+  [ask turtles [eval 1]]
+  [
+    ask turtles [eval 0]
+    ask min-one-of turtles [f] [eval 2]
+  ]
+
+  if [any? turtles-here] of target [stop]
+
   tick
 end
 
-to move
-  let p patch-ahead vel
-  if p = nobody or [not free?] of p [
-    rt random 360 stop
+to select
+  if random-float 1 > 0.25 [stop]
+  let o-t one-of other turtles
+  let better? f < [f] of o-t
+  ifelse better? xor (random-float 1 > 0.9)
+  [
+    ask o-t
+    [
+      set x [x] of myself
+      set f [f] of myself
+    ]
   ]
-  fd vel
-
-  let new-val eval-me
-  if new-val < val [rt random 360]
-  set val new-val
+  [
+    set x [x] of o-t
+    set f [f] of o-t
+  ]
 end
 
-to-report h [r]
-  let x r / d
-  report 2 * exp(- x * x) - 3 * exp(-4 * x * x)
+to crossover
+  if random-float 1 < 0.5 [stop]
+  let o-t one-of other turtles
+  let t (list)
+  let i 0
+  repeat n
+  [
+    ifelse random-float 1 < 0.8
+    [set t lput (item i x) t]
+    [set t lput (item i [x] of o-t) t]
+    set i i + 1
+  ]
+  set x t
+end
+
+to mutate
+  if random-float 1 < 0.2
+  [
+    let t (list)
+    let i 0
+    repeat n
+    [
+      set t lput (item i x + random-float 4 - 2) t
+
+      set i i + 1
+    ]
+    set x t
+  ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
 0
-12
-418
-431
+10
+437
+448
 -1
 -1
-10.0
+13.0
 1
 10
 1
@@ -155,97 +157,63 @@ GRAPHICS-WINDOW
 0
 0
 1
--20
-20
--20
-20
+-16
+16
+-16
+16
 1
 1
 1
 ticks
 30.0
 
+BUTTON
+474
+1
+547
+34
+NIL
+setup
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
 CHOOSER
-454
-4
-593
-49
-map-type
-map-type
-"free" "blackhole" "bricks"
-2
-
-BUTTON
-459
-69
-569
-103
-NIL
-setup-map
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-462
-119
-586
-153
-NIL
-setup-target
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
+473
+48
+611
+93
+layout
+layout
+"empty" "random" "bar" "hole"
 1
 
 SLIDER
-460
-177
-632
-210
-colony-size
-colony-size
-1
-100
-50.0
-1
+477
+106
+649
+139
+pop-size
+pop-size
+50
+1000
+1000.0
+50
 1
 NIL
 HORIZONTAL
 
 BUTTON
-464
-228
-588
-261
-NIL
-setup-colony
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-468
-275
-531
-308
+482
+145
+545
+178
 NIL
 go
 T
@@ -259,56 +227,37 @@ NIL
 0
 
 SWITCH
-472
-318
-575
-351
-trace?
-trace?
+482
+187
+629
+220
+hide-turtles?
+hide-turtles?
 0
 1
 -1000
-
-SLIDER
-474
-361
-646
-394
-vel
-vel
-0.1
-1
-0.3
-0.1
-1
-NIL
-HORIZONTAL
 
 SWITCH
-474
-404
-584
-437
-swarm?
-swarm?
+484
+229
+622
+262
+show-best?
+show-best?
 0
 1
 -1000
 
-SLIDER
-476
-451
-648
-484
-d
-d
-1
-20
-5.0
-1
-1
+MONITOR
+489
+283
+609
+328
 NIL
-HORIZONTAL
+min [f] of turtles
+17
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
