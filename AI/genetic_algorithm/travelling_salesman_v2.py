@@ -65,6 +65,8 @@ def roulette(population, estimates, nindividuals, offset=1):
         probability = estimate / normalized_estimates_sum
         cumulative_sum += probability
         cumulative_probabilities.append(cumulative_sum)
+    
+    cumulative_probabilities[-1] = 1
 
     while len(individuals) != nindividuals:
         rand_num = random.random()
@@ -211,7 +213,7 @@ if __name__ == '__main__':
 
     populations_size = 200
     nepochs = 5000
-    mutation_probability = 0.02
+    mutation_probability = 0.016
 
     start_time = time.time()
 

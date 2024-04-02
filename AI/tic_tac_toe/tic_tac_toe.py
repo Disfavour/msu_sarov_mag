@@ -168,7 +168,7 @@ if __name__ == '__main__':
 
     #state = np.zeros((3, 3), dtype=int)
 
-    nsteps=2
+    nsteps=1
     root = get_tree(state, nsteps)
     plot_tree(root)
     #plot_tree(root, join(cur_dir, f'tic_tac_toe_{nsteps}_step.pdf'))
