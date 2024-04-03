@@ -122,6 +122,13 @@ void run_life(int n, int T)
 	}
 
 	MPI_Scatterv(global_data, counts, displs, global_matrix, data, 1, matrix, 0, MPI_COMM_WORLD);
+
+	double elapsed_time = 0;
+
+	if (!rank)
+	{
+		elapsed_time = MPI_Wtime();
+	}
 	
 	for( int t = 0; t < T; t++ )
 	{
@@ -139,7 +146,9 @@ void run_life(int n, int T)
 
 	if (rank == 0)
 	{
-		ofstream f("output1.dat");
+		elapsed_time = MPI_Wtime() - elapsed_time;
+
+		ofstream f("output.dat");
 		for (int i = 0; i < N; i++)
 		{
 			for (int j = 0; j < N; j++)
@@ -147,6 +156,14 @@ void run_life(int n, int T)
 			f << endl;
 		}
 		f.close();
+
+		ofstream f2("stat.dat");
+		f2 << n << " " << T << " " << p << " " << elapsed_time << endl;
+		f2.close();
+
+		ofstream f3("data_for_plots.dat", ios::app);
+		f3 << N << " " << size << " " << elapsed_time << endl;
+		f3.close();
 	}
 
 	delete[] counts;

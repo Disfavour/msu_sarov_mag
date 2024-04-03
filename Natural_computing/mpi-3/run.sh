@@ -1,0 +1,12 @@
+mpirun -n 1 --oversubscribe ./a.out 150 4800
+mpirun -n 4 --oversubscribe ./a.out 75 4800
+mpirun -n 9 --oversubscribe ./a.out 50 4800
+mpirun -n 1 --oversubscribe ./a.out 300 4800
+mpirun -n 4 --oversubscribe ./a.out 150 4800
+mpirun -n 9 --oversubscribe ./a.out 100 4800
+mpirun -n 1 --oversubscribe ./a.out 600 4800
+mpirun -n 4 --oversubscribe ./a.out 300 4800
+mpirun -n 9 --oversubscribe ./a.out 200 4800
+mpirun -n 1 --oversubscribe ./a.out 1200 4800
+mpirun -n 4 --oversubscribe ./a.out 600 4800
+mpirun -n 9 --oversubscribe ./a.out 400 4800
