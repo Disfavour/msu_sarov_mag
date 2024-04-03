@@ -1,0 +1,8 @@
+add-rule "F" "F-F+F+FF-F-F+F" "F"
+set chain "F-F-F-F"
+set d 16
+set delta 90
+set x0 -8
+set y0 8
+set delta-0 90
+set k-shorten 0.25
