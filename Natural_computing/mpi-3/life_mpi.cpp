@@ -26,10 +26,10 @@ void update_data(int n, int* data, int* temp)
 			temp[i*(n+2)+j] = f(data, i, j, n);
 }
 
-void init(int n, int* data, int* temp)
+void init(int n, int* data)
 {
 	for( int i=0; i<(n+2)*(n+2); i++ )
-		data[i] = temp[i] = 0;
+		data[i] = 0;
 	int n0 = 1+n/2;
 	int m0 = 1+n/2;
 	data[(n0-1)*(n+2)+m0] = 1;
@@ -38,43 +38,49 @@ void init(int n, int* data, int* temp)
 		data[(n0+1)*(n+2)+m0+i-1] = 1;
 }
 
-void setup_boundaries(int n, int* data)
-{
-	for( int i=0; i<n+2; i++ )
-	{
-		data[i*(n+2)+0] = data[i*(n+2)+n];
-		data[i*(n+2)+n+1] = data[i*(n+2)+1];
-	}
-	for( int j=0; j<n+2; j++ )
-	{
-		data[0*(n+2)+j] = data[n*(n+2)+j];
-		data[(n+1)*(n+2)+j] = data[1*(n+2)+j];
-	}
-}
-
 void run_life(int n, int T)
 {
 	int size, rank;
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-	const int px = sqrt(size);
-	const int N = n*px;
+	MPI_Comm comm;
+
+	int dims[] = {0, 0};
+    MPI_Dims_create(size, 2, dims);
+
+	int periods[2] = {true, true};
+	int reorder = true;
+    MPI_Cart_create(MPI_COMM_WORLD, 2, dims, periods, reorder, &comm);
+	
+    MPI_Comm_rank(comm, &rank);
+
+    int left, right, top, bot;
+    MPI_Cart_shift(comm, 1, 1, &left, &right);
+    MPI_Cart_shift(comm, 0, 1, &top, &bot);
+	// left to right and top to bottom
+	// (3, 2) - (0, 1) - (rows, columns)
+	// (0, 0) (0, 1)
+	// (1, 0) (1, 1)
+	// (2, 0) (2, 1)
+
+	const int p = dims[0]; //sqrt(size);
+	const int N = n*p;
 
 	MPI_Datatype
 		global_matrix_not_resized,
 		global_matrix,
 		matrix_not_resized,
-		matrix;
+		matrix,
+		row,
+		column;
 
-	int *data, *temp, *global_data, *global_temp;
+	int *data, *temp, *global_data;
 
 	if (rank == 0)
 	{
 		global_data = new int[N*N];
-		global_temp = new int[N*N];
 
-		init(N-2, global_data, global_temp);
+		init(N-2, global_data);
 
 		int sizes[2]    = {N, N};
 		int subsizes[2] = {n, n};
@@ -83,11 +89,10 @@ void run_life(int n, int T)
 		MPI_Type_create_subarray(2, sizes, subsizes, starts, MPI_ORDER_C, MPI_INT, &global_matrix_not_resized);  
 		MPI_Type_create_resized(global_matrix_not_resized, 0, n*sizeof(int), &global_matrix); // extent = кол-во столбцов матрицы
 		MPI_Type_commit(&global_matrix);
-		//MPI_Type_vector(n, n, N+2, MPI_INT, &matrix);
 	}
 
-	data = new int[(n+2)*(n+2)];
-	temp = new int[(n+2)*(n+2)];
+	data = new int[(n+2)*(n+2)] {};
+	temp = new int[(n+2)*(n+2)] {};
 
 	int sizes[2]    = {n+2, n+2};
 	int subsizes[2] = {n, n};
@@ -96,97 +101,53 @@ void run_life(int n, int T)
 	MPI_Type_create_subarray(2, sizes, subsizes, starts, MPI_ORDER_C, MPI_INT, &matrix);
 	MPI_Type_commit(&matrix);
 
+    MPI_Type_contiguous(n+2, MPI_INT, &row);
+	MPI_Type_commit(&row);
+
+    MPI_Type_vector(n+2, 1, n+2, MPI_INT, &column);
+    MPI_Type_commit(&column);
+
 	int *counts = new int[size];
 	int *displs = new int[size];
 
 	int counter = 0;
-	for (int i = 0; i < px; i++)
+	for (int i = 0; i < p; i++)
 	{
-		for (int j = 0; j < px; j++)
+		for (int j = 0; j < p; j++)
 		{
 			counts[counter] = 1;
-			displs[counter] = i*N+j; // i*(n*N) + j отступ в int
+			displs[counter] = i*N+j; // i*(n*N) + j если отступ в int'ах
 			counter++;
 		}
 	}
 
-	// if (rank == 0)
-	// {
-	// 	for (int i = 0; i < N; i++)
-	// 	{
-	// 		for (int j = 0; j < N; j++)
-	// 		{
-	// 			cout << global_data[i*N + j] << " ";
-	// 		}
-	// 		cout << endl;
-	// 	}
-	// 	cout << endl;
-	// }
-
 	MPI_Scatterv(global_data, counts, displs, global_matrix, data, 1, matrix, 0, MPI_COMM_WORLD);
-
-	// for (int i = 0; i < size; i++)
-	// {
-	// 	if (rank == i)
-	// 	{
-	// 		cout << rank << endl;
-	// 		for (int i = 1; i < n+1; i++)
-	// 		{
-	// 			for (int j = 1; j < n+1; j++)
-	// 			{
-	// 				cout << data[i*(n+2) + j] << " ";
-	// 			}
-	// 			cout << endl;
-	// 		}
-	// 	}
-	// 	MPI_Barrier(MPI_COMM_WORLD);
-	// }
-
-	// if (rank == 0)
-	// {
-	// 	for (int i = 0; i < N; i++)
-	// 	{
-	// 		for (int j = 0; j < N; j++)
-	// 		{
-	// 			cout << global_temp[i*N + j] << " ";
-	// 		}
-	// 		cout << endl;
-	// 	}
-	// 	cout << endl;
-	// }
-
-	MPI_Gatherv(data, 1, matrix, global_temp, counts, displs, global_matrix, 0, MPI_COMM_WORLD);
-
-	// if (rank == 0)
-	// {
-	// 	for (int i = 0; i < N; i++)
-	// 	{
-	// 		for (int j = 0; j < N; j++)
-	// 		{
-	// 			cout << global_temp[i*N + j] << " ";
-	// 		}
-	// 		cout << endl;
-	// 	}
-	// 	cout << endl;
-	// }
-	
-	return;
 	
 	for( int t = 0; t < T; t++ )
 	{
-		setup_boundaries(n, data);
+		MPI_Sendrecv(data+n, 1, column, right, 123, data, 1, column, left, 123, comm, MPI_STATUS_IGNORE);
+		MPI_Sendrecv(data+1, 1, column, left, 124, data+n+1, 1, column, right, 124, comm, MPI_STATUS_IGNORE);
+
+		MPI_Sendrecv(data+n*(n+2), 1, row, bot, 125, data, 1, row, top, 125, comm, MPI_STATUS_IGNORE);
+		MPI_Sendrecv(data+1*(n+2), 1, row, top, 126, data+(n+1)*(n+2), 1, row, bot, 126, comm, MPI_STATUS_IGNORE);
+
 		update_data(n, data, temp);
 		swap(data, temp);
 	}
 
-	ofstream f("output.dat");
-	for( int i=1; i<=n; i++ )
+	MPI_Gatherv(data, 1, matrix, global_data, counts, displs, global_matrix, 0, MPI_COMM_WORLD);
+
+	if (rank == 0)
 	{
-		for( int j=1; j<=n; j++ )
-			f << data[i*(n+2)+j];
-		f << endl;
+		ofstream f("output1.dat");
+		for (int i = 0; i < N; i++)
+		{
+			for (int j = 0; j < N; j++)
+				f << global_data[i*N+j];
+			f << endl;
+		}
+		f.close();
 	}
-	f.close();
 
 	delete[] counts;
 	delete[] displs;
@@ -194,10 +155,11 @@ void run_life(int n, int T)
 	if (rank == 0)
 	{
 		delete[] global_data;
-		delete[] global_temp;
 		MPI_Type_free(&global_matrix);
 	}
 
+	MPI_Type_free(&row);
+    MPI_Type_free(&column);
 	MPI_Type_free(&matrix);
 
 	delete[] data;
