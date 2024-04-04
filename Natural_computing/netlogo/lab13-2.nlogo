@@ -1,6 +1,6 @@
 breed [chars char]
 chars-own [v alpha cmd]
-globals [chain d delta x0 y0 delta-0 k-shorten turtle-1 pos]
+globals [chain d delta x0 y0 delta-0 k-shorten turtle-1 pos d-delta]
 
 to add-rule [u al cm]
   create-chars 1
@@ -59,6 +59,20 @@ to setup-hilbert-curve
   set k-shorten 0.5
 end
 
+to setup-dragon-curve
+  add-rule "L" "L+R+" "F"
+  add-rule "R" "-L-R" "F"
+
+  set chain "L"
+  set d 24
+  set delta 90
+  set x0 0
+  set y0 0
+  set delta-0 90
+  set k-shorten 0.65;0.6
+  set d-delta 45
+end
+
 to setup
   clear-all
   ask patches [set pcolor white]
@@ -68,6 +82,8 @@ to setup
   [setup-simple-tree]
   if l-system = "Hilbert curve"
   [setup-hilbert-curve]
+  if l-system = "Dragon curve"
+  [setup-dragon-curve]
 
   create-turtles 1
   [
@@ -102,6 +118,7 @@ to restart
   update-chain
   set pos 0
   set d d * k-shorten
+  set delta-0 delta-0 + d-delta
   ask turtle-1 [init-turtle]
 end
 
@@ -132,7 +149,6 @@ to run-cmd
   if cm = "[" [hatch 1]
   if cm = "]" [die]
 end
-
 @#$#@#$#@
 GRAPHICS-WINDOW
 0
@@ -181,12 +197,12 @@ NIL
 CHOOSER
 513
 52
-653
+662
 97
 l-system
 l-system
-"Koch island" "Simple tree" "Hilbert curve"
-2
+"Koch island" "Simple tree" "Hilbert curve" "Dragon curve"
+3
 
 BUTTON
 516

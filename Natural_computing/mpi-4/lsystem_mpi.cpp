@@ -6,12 +6,20 @@
 
 using namespace std;
 
-string update_data(string data, map<char, string>& R)
+double frand() // вещественное случайное число в диапазоне [0,1]
+{
+	return double(rand())/RAND_MAX;
+}
+
+string update_data(string data, map<char, string>& R, double probability)
 {
 	string buf = "";
 
 	for( unsigned int i=0; i<data.length(); i++ )
-		buf += R[data[i]];
+		if (frand() <= probability)
+			buf += R[data[i]];
+		else
+			buf += data[i];
 
 	return buf;
 }
@@ -31,6 +39,7 @@ void run_lsystem(int T, int k)
     MPI_Cart_create(MPI_COMM_WORLD, 1, &dim, periods, reorder, &comm);
 	
     MPI_Comm_rank(comm, &rank);
+	srand(time(NULL) + rank);
 
     int left, right;
     MPI_Cart_shift(comm, 0, 1, &left, &right);
@@ -44,14 +53,33 @@ void run_lsystem(int T, int k)
 
     // система правил
 	map<char, string> R;
-	R['a'] = "ab";
-	R['b'] = "bc";
-	R['c'] = "c";
+	double probability;
+
+	int task = 1;
+
+	if (task == 1)
+	{
+		probability = 1;
+		R['a'] = "ab";
+		R['b'] = "bc";
+		R['c'] = "c";
+	}
+	else if (task == 2)
+	{
+		probability = 0.001;
+		R['a'] = "aa";
+	}
+	else if (task == 3)
+	{
+		probability = 0.01;
+		R['a'] = "ab";
+		R['b'] = "a";
+	}
 
     // основной цикл
 	for (int t = 1; t <= T; t++)
 	{
-		data = update_data(data,R);
+		data = update_data(data, R, probability);
 
 		if (t % k == 0)
 		{
@@ -171,7 +199,7 @@ void run_lsystem(int T, int k)
 		}
 		f2.close();
 
-		ofstream f3("data_for_plots1.dat", ios::app);
+		ofstream f3(string("data/") + "L" + to_string(task) + "_" + to_string(size) + ".dat");
 		for (int i = 0; i < T/k; i++)
 		{
 			for (int j = 0; j < size + 1; j++)
