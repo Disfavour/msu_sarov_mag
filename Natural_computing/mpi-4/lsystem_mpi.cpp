@@ -2,6 +2,7 @@
 #include <string>
 #include <map>
 #include <mpi.h>
+#include <iostream>
 
 using namespace std;
 
@@ -54,6 +55,10 @@ void run_lsystem(int T, int k)
 
 		if (t % k == 0)
 		{
+			if (rank == 0)
+			{
+				cout << t << endl;
+			}
 			// collect data
 			double len = data.length();
 			MPI_Gather(&len, 1, MPI_DOUBLE, stat_data + (t/k - 1) * (1+size) + 1, 1, MPI_DOUBLE, 0, comm);
@@ -151,7 +156,7 @@ void run_lsystem(int T, int k)
 		}
 
 		// сохранение результатов расчета
-		ofstream f("output1.dat");
+		ofstream f("output.dat");
 		f << data << endl;
 		f.close();
 
@@ -165,6 +170,17 @@ void run_lsystem(int T, int k)
 			f2 << endl;
 		}
 		f2.close();
+
+		ofstream f3("data_for_plots1.dat", ios::app);
+		for (int i = 0; i < T/k; i++)
+		{
+			for (int j = 0; j < size + 1; j++)
+			{
+				f3 << stat_data[i*(size + 1) + j] << " ";
+			}
+			f3 << endl;
+		}
+		f3.close();
 
 		delete[] stat_data;
 	}
