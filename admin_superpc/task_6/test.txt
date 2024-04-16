@@ -1,0 +1,10 @@
+1022449 edu-cmc-skmodel23-601-01        4
+1022516 edu-cmc-skmodel23-601-01        3
+1022930 edu-cmc-skmodel23-601-01        5
+1024565 edu-cmc-skmodel23-601-01        7
+1027113 edu-cmc-skmodel23-601-02        9
+1027117 edu-cmc-skmodel23-601-02        1
+902155  edu-cmc-skmodel23-601-02        8
+1022436 edu-cmc-skmodel23-601-03        2
+1022439 edu-cmc-skmodel23-601-03        3
+1022531 edu-cmc-skmodel23-601-04        4
