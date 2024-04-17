@@ -16,103 +16,76 @@ lenght_answer=${#answer}
 tput clear
 
 width=$(tput cols)
-center=$(($width / 2))
+x_right=$(($width / 2 + $lenght_answer / 2))
+y_razryad=3
+y_n=$(($y_razryad + 1))
+y_m=$(($y_n + 1))
+y_answer=$(($y_m + 1))
+x_info=$(($width / 3))
+y_info=$(($y_answer + 2))
 
-x_left=$(($center - $lenght_n / 2))
-x_right=$(($x_left + $lenght_n - 1))
-y_top=3
-y_bot=$(($y_top + 3))
-x_word=$(($width / 3))
-y_word=$(($y_bot + 2))
-
-tput cup $(($y_top + 1)) $x_left
+tput cup $y_n $(($x_right - $lenght_n))
 printf "%d" $n
 
-tput cup $(($y_top + 2)) $x_right
+tput cup $y_m $(($x_right - 1))
 printf "%d" $m
 
-razryad=0
-x_left_n=$x_left
-
-# 1
-x=$x_right
-
-n_digit=${n:$(($x - $x_left)):1}
-printf "\n"
-echo $n $n_digit $x $x_left $(($x - $x_left))
-printf "\n"
-res=$(($n_digit * $m + $razryad))
-correct_digit=$(($res % 10))
-razryad=$(($res / 10))
-
-tput cup $y_bot $x
-read -n1 digit
-
-while [ $digit != $correct_digit ]; do
-    printf "\b "
-    tput cup $y_word $x_word
-    printf "No! You are wrong! Try again!"
-
-    tput cup $y_bot $x
-    read -n1 digit
-done
-
-tput cup $y_word $x_word
-printf "Yes! You are right!"
-
-x_left=$(($x_right - $lenght_answer + 1))
-x_right=$(($x_right - 1))
-
-for (( x=x_right; x >= x_left; x-- )); do
-
-    tput cup 1 1
-    echo $razryad
-
-    tput cup $y_top $x
-    read -n1 digit
-
-    while [ $digit != $razryad ]; do
-        printf "\b "
-        tput cup $y_word $x_word
-        printf "No! You are wrong! Try again!"
-
-        tput cup $y_top $x
-        read -n1 digit
+function clear_info
+{
+    tput cup $y_info 0
+    for (( i = 0; i < width; i++ )); do
+        printf " "
     done
+}
 
-    tput cup $y_word $x_word
+function info_yes
+{
+    clear_info
+    tput cup $y_info $x_info
     printf "Yes! You are right!"
+}
 
-    # цифра произведения
-    idx=$(($x - $x_left_n))
-    if [ $idx -lt 0 ]; then
-        res=$razryad
+function info_no
+{
+    printf "\b \b"
+    clear_info
+    tput cup $y_info $x_info
+    printf "No! You are wrong! Try again!"
+}
+
+razryad=0
+
+for (( x = x_right-1; x >= x_right - lenght_answer; x-- )); do
+    idx=$(($lenght_n - ($x_right - $x)))
+
+    if [ $razryad != 0 -a $idx -ge 0 ]; then
+        tput cup $y_razryad $x
+        read -n1 digit
+        while [ $digit != $razryad ]; do
+            info_no
+            tput cup $y_razryad $x
+            read -n1 digit
+        done
+        info_yes
+    fi
+    
+    if [ $idx -ge 0 ]; then
+        res=$((${n:idx:1} * $m + $razryad))
     else
-        n_digit=${n:idx:1}
-        res=$(($n_digit * $m + $razryad))
+        res=$razryad
     fi
     correct_digit=$(($res % 10))
     razryad=$(($res / 10))
 
-    tput cup 1 1
-    echo $correct_digit $res $n_digit
-
-    tput cup $y_bot $x
+    tput cup $y_answer $x
     read -n1 digit
-
     while [ $digit != $correct_digit ]; do
-        printf "\b "
-        tput cup $y_word $x_word
-        printf "No! You are wrong! "
-
-        tput cup $y_bot $x
+        info_no
+        tput cup $y_answer $x
         read -n1 digit
     done
-
-    tput cup $y_word $x_word
-    printf "Yes! You are right!"
+    info_yes
 
 done
 
-tput cup $(($y_word + 1)) 0
-printf "\n"
+tput cup $(($y_info + 1)) 0
